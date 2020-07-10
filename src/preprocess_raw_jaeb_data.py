@@ -17,6 +17,9 @@ import os
 import orjson
 import flatten_json
 import pandas as pd
+from multiprocessing import Pool
+import traceback
+import sys
 
 # %% Functions
 
@@ -65,6 +68,7 @@ def calculate_column_combinations(flattened_data):
         flattened_object.update({"column_combination": sorted(set(flattened_object))})
     return flattened_data
 
+
 def convert_json_to_df(flattened_data):
     flattened_df = pd.DataFrame(flattened_data)
     flattened_df = flattened_df.reindex(sorted(flattened_df.columns), axis=1)
@@ -108,18 +112,25 @@ def save_flattened_dataset_to_parquet(flattened_df, compressed_dataset_location,
 
     return
 
+
 def save_flattened_dataset_to_gzip(flattened_df, compressed_dataset_location, dataset_name):
     compressed_dataset_name = dataset_name[:-5] + ".gz"
-    flattened_df.to_csv(compressed_dataset_location + compressed_dataset_name, compression='gzip')
+    flattened_df.to_csv(compressed_dataset_location + compressed_dataset_name, compression="gzip")
 
     return
 
 
 def process_dataset(
-    column_dictionary_file, column_sample_location, compressed_dataset_location, dataset_location, dataset_name,
+    column_dictionary_file,
+    column_sample_location,
+    compressed_dataset_location,
+    dataset_location,
+    dataset_names,
+    file_index,
 ):
+    print("Starting: " + str(file_index))
     column_dictionary, last_entry_index, dictionary_cols = check_master_dictionary(column_dictionary_file)
-
+    dataset_name = dataset_names[file_index]
     dataset_path = dataset_location + dataset_name
     json_data = import_data(dataset_path)
 
@@ -139,7 +150,10 @@ def process_dataset(
 
     column_dictionary.to_csv(column_dictionary_file, index=False)
 
-    return flattened_df
+    # save_flattened_dataset_to_parquet(flattened_df, compressed_dataset_location, dataset_name)
+    save_flattened_dataset_to_gzip(flattened_df, compressed_dataset_location, dataset_name)
+
+    return
 
 
 def main():
@@ -154,16 +168,41 @@ def main():
     dataset_location = "data/PHI-adverse-events/"
     dataset_names = os.listdir(dataset_location)
 
-    for file_index in range(len(dataset_names)):
-        print(file_index)
-        dataset_name = dataset_names[file_index]
+    # Startup CPU multiprocessing pool
+    multiprocess_pool = Pool(os.cpu_count())
 
-        flattened_df = process_dataset(
-            column_dictionary_file, column_sample_location, compressed_dataset_location, dataset_location, dataset_name,
+    results_array = [
+        multiprocess_pool.apply_async(
+            process_dataset,
+            args=[
+                column_dictionary_file,
+                column_sample_location,
+                compressed_dataset_location,
+                dataset_location,
+                dataset_names,
+                file_index,
+            ],
         )
+        for file_index in range(len(dataset_names))
+    ]
 
-        # save_flattened_dataset_to_parquet(flattened_df, compressed_dataset_location, dataset_name)
-        save_flattened_dataset_to_gzip(flattened_df, compressed_dataset_location, dataset_name)
+    multiprocess_pool.close()
+    multiprocess_pool.join()
+
+    multiprocess_results = []
+
+    for result_loc in range(len(results_array)):
+        try:
+            multiprocess_results.append(results_array[result_loc].get())
+        except Exception as e:
+            print("Failed to get results! " + str(e))
+            exception_text = traceback.format_exception(*sys.exc_info())
+            print("\nException Text:\n")
+            for text_string in exception_text:
+                print(text_string)
+
+    print("done!")
+
 
 # %%
 if __name__ == "__main__":
