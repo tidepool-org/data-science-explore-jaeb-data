@@ -17,17 +17,65 @@ import os
 import orjson
 import flatten_json
 import pandas as pd
-from multiprocessing import Pool
-import traceback
-import sys
+import argparse
 
 # %% Functions
 
 
-def check_and_make_directory(dir_name):
-    if not os.path.exists(dir_name):
-        os.makedirs(dir_name)
-    return
+def get_args():
+    codeDescription = "Process a single raw Jaeb Loop .JSON Dataset"
+
+    parser = argparse.ArgumentParser(description=codeDescription)
+
+    parser.add_argument(
+        "-column_sample_location",
+        dest="column_sample_location",
+        default="data/processed/column-combination-samples/",
+        help="The location where samples from each column combination are saved",
+    )
+
+    parser.add_argument(
+        "-column_dictionary_file",
+        dest="column_dictionary_file",
+        default="data/processed/master-column-combination-dictionary.csv",
+        help="The location of the master dictionary for all columns",
+    )
+
+    parser.add_argument(
+        "-compressed_dataset_location",
+        dest="compressed_dataset_location",
+        default="data/processed/PHI-compressed-data/",
+        help="The location where compressed processed datasets are saved",
+    )
+
+    parser.add_argument(
+        "-dataset_location",
+        dest="dataset_location",
+        default="data/PHI-adverse-events/",
+        help="The location where raw datasets are imported from",
+    )
+
+    parser.add_argument(
+        "-dataset_name", dest="dataset_name", default="", help="The name of the dataset file to process",
+    )
+
+    parser.add_argument(
+        "--mode",
+        dest="_",
+        default="_",
+        help="Temp PyCharm console space",
+    )
+
+    parser.add_argument(
+        "--port",
+        dest="_",
+        default="_",
+        help="Temp PyCharm console space",
+    )
+
+    args = parser.parse_args()
+
+    return args
 
 
 def check_master_dictionary(column_dictionary_file):
@@ -35,10 +83,10 @@ def check_master_dictionary(column_dictionary_file):
 
     if os.path.exists(column_dictionary_file):
         column_dictionary = pd.read_csv(column_dictionary_file)
-        last_entry_index = int(column_dictionary["#"].max())
+        last_entry_index = int(column_dictionary["#"].max()) + 1
     else:
         column_dictionary = pd.DataFrame(index=[0], columns=dictionary_cols)
-        last_entry_index = int(0)
+        last_entry_index = 0
 
     return column_dictionary, last_entry_index, dictionary_cols
 
@@ -81,7 +129,7 @@ def update_dictionary(combo, column_dictionary, dictionary_cols, last_entry_inde
     combo_occurrences = sum(flattened_df["column_combination"] == combo)
 
     if combo not in column_dictionary["combinations"].values:
-        column_dictionary.loc[last_entry_index, dictionary_cols] = [last_entry_index, combo, combo_occurrences, ""]
+        column_dictionary.loc[last_entry_index, dictionary_cols] = [str(last_entry_index), combo, combo_occurrences, ""]
         last_entry_index += 1
     else:
         column_dictionary.loc[column_dictionary["combinations"] == combo, "occurrences"] += combo_occurrences
@@ -90,7 +138,7 @@ def update_dictionary(combo, column_dictionary, dictionary_cols, last_entry_inde
 
 
 def save_combination_sample(combo, column_dictionary, flattened_df, column_sample_location):
-    sample = flattened_df.loc[flattened_df["column_combination"] == combo].dropna(axis=1).reset_index().sample(1)
+    sample = flattened_df.loc[flattened_df["column_combination"] == combo].dropna(axis=1).reset_index(drop=True).sample(1)
 
     combo_number = str(column_dictionary.loc[column_dictionary["combinations"] == combo, "#"].values[0])
     sample_file_name = column_sample_location + "{}-column-samples.csv".format(combo_number)
@@ -120,17 +168,14 @@ def save_flattened_dataset_to_gzip(flattened_df, compressed_dataset_location, da
     return
 
 
-def process_dataset(
-    column_dictionary_file,
-    column_sample_location,
-    compressed_dataset_location,
-    dataset_location,
-    dataset_names,
-    file_index,
-):
-    print("Starting: " + str(file_index))
+def process_dataset(processor_args):
+    column_dictionary_file = processor_args.column_dictionary_file
+    column_sample_location = processor_args.column_sample_location
+    compressed_dataset_location = processor_args.compressed_dataset_location
+    dataset_location = processor_args.dataset_location
+    dataset_name = processor_args.dataset_name
+
     column_dictionary, last_entry_index, dictionary_cols = check_master_dictionary(column_dictionary_file)
-    dataset_name = dataset_names[file_index]
     dataset_path = dataset_location + dataset_name
     json_data = import_data(dataset_path)
 
@@ -156,54 +201,7 @@ def process_dataset(
     return
 
 
-def main():
-    processed_data_location = "data/processed/"
-    column_dictionary_file = processed_data_location + "master-column-combination-dictionary.csv"
-    column_sample_location = processed_data_location + "column-combination-samples/"
-    compressed_dataset_location = processed_data_location + "PHI-compressed-data/"
-
-    # Check & make directories
-    [check_and_make_directory(dir_name) for dir_name in [column_sample_location, compressed_dataset_location]]
-
-    dataset_location = "data/PHI-adverse-events/"
-    dataset_names = os.listdir(dataset_location)
-
-    # Startup CPU multiprocessing pool
-    multiprocess_pool = Pool(os.cpu_count())
-
-    results_array = [
-        multiprocess_pool.apply_async(
-            process_dataset,
-            args=[
-                column_dictionary_file,
-                column_sample_location,
-                compressed_dataset_location,
-                dataset_location,
-                dataset_names,
-                file_index,
-            ],
-        )
-        for file_index in range(len(dataset_names))
-    ]
-
-    multiprocess_pool.close()
-    multiprocess_pool.join()
-
-    multiprocess_results = []
-
-    for result_loc in range(len(results_array)):
-        try:
-            multiprocess_results.append(results_array[result_loc].get())
-        except Exception as e:
-            print("Failed to get results! " + str(e))
-            exception_text = traceback.format_exception(*sys.exc_info())
-            print("\nException Text:\n")
-            for text_string in exception_text:
-                print(text_string)
-
-    print("done!")
-
-
 # %%
 if __name__ == "__main__":
-    main()
+    processor_args = get_args()
+    process_dataset(processor_args)
