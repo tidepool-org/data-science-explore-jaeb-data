@@ -75,7 +75,7 @@ def jaeb_data_subprocessor(
 
 def main():
     processed_data_location = "data/processed/"
-    column_dictionary_file = processed_data_location + "master-column-combination-dictionary.csv"
+    column_dictionary_file = processed_data_location + "master-column-combination-dictionary.tsv"
     column_sample_location = processed_data_location + "column-combination-samples/"
     compressed_dataset_location = processed_data_location + "PHI-compressed-data/"
     dataset_location = "data/PHI-adverse-events/"

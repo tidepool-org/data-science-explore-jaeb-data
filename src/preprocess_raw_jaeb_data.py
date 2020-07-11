@@ -37,7 +37,7 @@ def get_args():
     parser.add_argument(
         "-column_dictionary_file",
         dest="column_dictionary_file",
-        default="data/processed/master-column-combination-dictionary.csv",
+        default="data/processed/master-column-combination-dictionary.tsv",
         help="The location of the master dictionary for all columns",
     )
 
@@ -82,7 +82,7 @@ def check_master_dictionary(column_dictionary_file):
     dictionary_cols = ["#", "combinations", "occurrences", "info"]
 
     if os.path.exists(column_dictionary_file):
-        column_dictionary = pd.read_csv(column_dictionary_file)
+        column_dictionary = pd.read_csv(column_dictionary_file, sep='\t')
         last_entry_index = int(column_dictionary["#"].max()) + 1
     else:
         column_dictionary = pd.DataFrame(index=[0], columns=dictionary_cols)
@@ -141,15 +141,15 @@ def save_combination_sample(combo, column_dictionary, flattened_df, column_sampl
     sample = flattened_df.loc[flattened_df["column_combination"] == combo].dropna(axis=1).reset_index(drop=True).sample(1)
 
     combo_number = str(column_dictionary.loc[column_dictionary["combinations"] == combo, "#"].values[0])
-    sample_file_name = column_sample_location + "{}-column-samples.csv".format(combo_number)
+    sample_file_name = column_sample_location + "{}-column-samples.tsv".format(combo_number)
 
     if os.path.exists(sample_file_name):
-        sample_list = pd.read_csv(sample_file_name)
+        sample_list = pd.read_csv(sample_file_name, sep='\t')
         sample_list = sample_list.append(sample)
     else:
         sample_list = sample
 
-    sample_list.to_csv(sample_file_name, index=False)
+    sample_list.to_csv(sample_file_name, sep='\t', index=False)
 
     return
 
@@ -163,7 +163,7 @@ def save_flattened_dataset_to_parquet(flattened_df, compressed_dataset_location,
 
 def save_flattened_dataset_to_gzip(flattened_df, compressed_dataset_location, dataset_name):
     compressed_dataset_name = dataset_name[:-5] + ".gz"
-    flattened_df.to_csv(compressed_dataset_location + compressed_dataset_name, compression="gzip")
+    flattened_df.to_csv(compressed_dataset_location + compressed_dataset_name, sep='\t', compression="gzip")
 
     return
 
@@ -175,7 +175,6 @@ def process_dataset(processor_args):
     dataset_location = processor_args.dataset_location
     dataset_name = processor_args.dataset_name
 
-    column_dictionary, last_entry_index, dictionary_cols = check_master_dictionary(column_dictionary_file)
     dataset_path = dataset_location + dataset_name
     json_data = import_data(dataset_path)
 
@@ -187,13 +186,16 @@ def process_dataset(processor_args):
     # Get unique key combinations of data
     unique_combinations = flattened_df["column_combination"].unique()
 
+    column_dictionary, last_entry_index, dictionary_cols = check_master_dictionary(column_dictionary_file)
+
+
     for combo in unique_combinations:
         column_dictionary, last_entry_index = update_dictionary(
             combo, column_dictionary, dictionary_cols, last_entry_index, flattened_df
         )
         save_combination_sample(combo, column_dictionary, flattened_df, column_sample_location)
 
-    column_dictionary.to_csv(column_dictionary_file, index=False)
+    column_dictionary.to_csv(column_dictionary_file, sep='\t', index=False)
 
     # save_flattened_dataset_to_parquet(flattened_df, compressed_dataset_location, dataset_name)
     save_flattened_dataset_to_gzip(flattened_df, compressed_dataset_location, dataset_name)
