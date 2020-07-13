@@ -74,10 +74,16 @@ def flatten_data(json_data):
     return flattened_data
 
 
-def calculate_column_combinations(flattened_data):
+def calculate_column_combinations(flattened_data, dataset_name):
+    all_columns = []
     # Add set of all keys combined per object
     for flattened_object in flattened_data:
-        flattened_object.update({"column_combination": sorted(set(flattened_object))})
+        column_combination = sorted(set(flattened_object))
+        all_columns += list(column_combination)
+        flattened_object.update({"column_combination": column_combination})
+
+    num_unique_columns = len(set(all_columns))
+    print(dataset_name + " flattened column size: {}".format(num_unique_columns))
     return flattened_data
 
 
@@ -123,7 +129,7 @@ def process_dataset(dataset_location, dataset_name, processed_data_location):
 
     json_data = import_data(dataset_path)
     flattened_data = flatten_data(json_data)
-    flattened_data = calculate_column_combinations(flattened_data)
+    flattened_data = calculate_column_combinations(flattened_data, dataset_name)
     flattened_df = convert_json_to_df(flattened_data)
 
     unique_combinations = pd.Series(flattened_df["column_combination"].unique())
