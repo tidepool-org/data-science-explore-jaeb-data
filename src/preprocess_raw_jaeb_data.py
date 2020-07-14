@@ -14,9 +14,11 @@ Dependencies:
 
 # %% Imports
 import orjson
-import flatten_json
+
+# import flatten_json
 import pandas as pd
 import argparse
+from flatten_tidepool_json import flatten_json
 
 # %% Functions
 
@@ -70,7 +72,22 @@ def import_data(dataset_path):
 
 
 def flatten_data(json_data):
-    flattened_data = [flatten_json.flatten(json_data[i], separator=".") for i in range(len(json_data))]
+    root_keys_to_ignore = {
+        "payload.suspended",
+        "payload.resumed",
+        "payload.logIndices",
+        "insulinSensitivity",
+        "insulinSensitivities",
+        "carbRatios",
+        "carbRatio",
+        "bgTargets",
+        "bgTarget",
+        "basalSchedules",
+    }
+    flattened_data = [
+        flatten_json(json_data[i], separator=".", root_keys_to_ignore=root_keys_to_ignore)
+        for i in range(len(json_data))
+    ]
     return flattened_data
 
 
