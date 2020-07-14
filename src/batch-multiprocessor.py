@@ -14,7 +14,7 @@ import sys
 import subprocess as sub
 import numpy as np
 
-#%%
+# %%
 
 
 def check_and_make_directory(dir_name):
@@ -111,8 +111,11 @@ def process_column_combination_results(
     unique_dictionary.apply(
         lambda x: save_sample_group(x, all_data_samples, column_combination_sample_location), axis=1
     )
+    
+    all_data_samples.drop_duplicates(subset="column_combination", inplace=True)
+    all_data_samples.to_csv(processed_data_location + "sample_all_unique_combinations.tsv", sep="\t", index=False)
 
-    unique_dictionary.to_csv(processed_data_location + "unique_combination_dictionary.tsv", sep='\t', index=False)
+    unique_dictionary.to_csv(processed_data_location + "unique_combination_dictionary.tsv", sep="\t", index=False)
 
     end_time = time.time()
     elapsed_minutes = round((end_time - start_time) / 60, 4)
