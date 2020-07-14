@@ -145,20 +145,24 @@ def process_dataset(dataset_location, dataset_name, processed_data_location):
     dataset_path = dataset_location + dataset_name
 
     json_data = import_data(dataset_path)
-    flattened_data = flatten_data(json_data)
-    flattened_data = calculate_column_combinations(flattened_data, dataset_name)
-    flattened_df = convert_json_to_df(flattened_data)
 
-    unique_combinations = pd.Series(flattened_df["column_combination"].unique())
+    if len(json_data) == 0:
+        print(dataset_name + " -- no data to parse.")
+    else:
+        flattened_data = flatten_data(json_data)
+        flattened_data = calculate_column_combinations(flattened_data, dataset_name)
+        flattened_df = convert_json_to_df(flattened_data)
 
-    all_samples_df = unique_combinations.apply(lambda x: get_combination_sample(x, flattened_df))
-    all_samples_df = pd.concat(all_samples_df.values)
-    all_samples_df.reset_index(drop=True, inplace=True)
+        unique_combinations = pd.Series(flattened_df["column_combination"].unique())
 
-    save_samples(all_samples_df, processed_data_location, dataset_name)
+        all_samples_df = unique_combinations.apply(lambda x: get_combination_sample(x, flattened_df))
+        all_samples_df = pd.concat(all_samples_df.values)
+        all_samples_df.reset_index(drop=True, inplace=True)
 
-    # save_flattened_dataset_to_parquet(flattened_df, processed_data_location, dataset_name)
-    save_flattened_dataset_to_gzip(flattened_df, processed_data_location, dataset_name)
+        save_samples(all_samples_df, processed_data_location, dataset_name)
+
+        # save_flattened_dataset_to_parquet(flattened_df, processed_data_location, dataset_name)
+        save_flattened_dataset_to_gzip(flattened_df, processed_data_location, dataset_name)
 
     return
 
