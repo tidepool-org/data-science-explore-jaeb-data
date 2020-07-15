@@ -23,7 +23,6 @@ import time
 import pandas as pd
 import numpy as np
 import ast
-from metrics import metrics
 from tidepool_data_science_models.models.simple_metabolism_model import SimpleMetabolismModel
 
 # %% Constants
@@ -349,7 +348,7 @@ unique_loop_ids = issue_reports["loop_id"].unique()
 
 all_results = []
 
-for loop_id_index in unique_loop_ids:
+for loop_id_index in range(len(unique_loop_ids)):
 
     if loop_id_index % 10 == 0:
         print(loop_id_index)
