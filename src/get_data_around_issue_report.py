@@ -377,20 +377,27 @@ for loop_id_index in range(len(unique_loop_ids)):
         for report_idx in range(len(reports_from_one_id)):
             single_report = reports_from_one_id.loc[report_idx]
             report_results = pd.DataFrame(single_report).T
-            report_results = process_schedules(single_report, report_results)
 
             issue_report_date = single_report["report_timestamp"]
 
             sample_start_time = issue_report_date - datetime.timedelta(days=ANALYSIS_WINDOW_DAYS)
             sample_end_time = issue_report_date + datetime.timedelta(days=ANALYSIS_WINDOW_DAYS)
             days_of_data = (sample_end_time - sample_start_time).days
+            sample_data = data[(data["utc_time"] >= sample_start_time) & (data["utc_time"] < sample_end_time)].copy()
 
-            utc_offset = datetime.timedelta(seconds=single_report["basal_rate_timeZone"])
+            if pd.notnull(single_report["basal_rate_timeZone"]):
+                utc_offset = datetime.timedelta(seconds=single_report["basal_rate_timeZone"])
+            elif 'timezoneOffset' in data.columns:
+                most_common_data_offset = data['timezoneOffset'].mode()[0]
+                utc_offset = datetime.timedelta(minutes=most_common_data_offset)
+            else:
+                print("No timezone could be calculated. Defaulting to GMT-6")
+                utc_offset = datetime.timedelta(minutes=360)
             local_timezone = [tz for tz in pytz.all_timezones if utc_offset == pytz.timezone(tz)._utcoffset][0]
             print("{} -- {} timezone calculated: {}".format(loop_id, single_report["file_name"], local_timezone))
-
-            sample_data = data[(data["utc_time"] >= sample_start_time) & (data["utc_time"] < sample_end_time)].copy()
             sample_data["local_time"] = sample_data["utc_time"].dt.tz_convert(local_timezone)
+
+            report_results = process_schedules(single_report, report_results)
 
             cgm_data = sample_data[sample_data["type"] == "cbg"].copy()
             cgm_data["mg_dL"] = round(cgm_data["value"] * GLUCOSE_CONVERSION_FACTOR).astype(int)
