@@ -382,49 +382,52 @@ for loop_id_index in range(len(unique_loop_ids)):
         reports_from_one_id.reset_index(drop=True, inplace=True)
 
         for report_idx in range(len(reports_from_one_id)):
-            single_report = reports_from_one_id.loc[report_idx]
-            report_results = pd.DataFrame(single_report).T
+            try:
+                single_report = reports_from_one_id.loc[report_idx]
+                report_results = pd.DataFrame(single_report).T
 
-            issue_report_date = single_report["report_timestamp"]
+                issue_report_date = single_report["report_timestamp"]
 
-            sample_start_time = issue_report_date - datetime.timedelta(days=ANALYSIS_WINDOW_DAYS)
-            sample_end_time = issue_report_date + datetime.timedelta(days=ANALYSIS_WINDOW_DAYS)
-            days_of_data = (sample_end_time - sample_start_time).days
-            sample_data = data[(data["utc_time"] >= sample_start_time) & (data["utc_time"] < sample_end_time)].copy()
+                sample_start_time = issue_report_date - datetime.timedelta(days=ANALYSIS_WINDOW_DAYS)
+                sample_end_time = issue_report_date + datetime.timedelta(days=ANALYSIS_WINDOW_DAYS)
+                days_of_data = (sample_end_time - sample_start_time).days
+                sample_data = data[(data["utc_time"] >= sample_start_time) & (data["utc_time"] < sample_end_time)].copy()
 
-            if pd.notnull(single_report["basal_rate_timeZone"]):
-                utc_offset = datetime.timedelta(seconds=single_report["basal_rate_timeZone"])
-            elif "timezoneOffset" in data.columns:
-                most_common_data_offset = data["timezoneOffset"].mode()[0]
-                utc_offset = datetime.timedelta(minutes=most_common_data_offset)
-            else:
-                print("No timezone could be calculated. Defaulting to GMT-6")
-                utc_offset = datetime.timedelta(minutes=360)
-            local_timezone = [tz for tz in pytz.all_timezones if utc_offset == pytz.timezone(tz)._utcoffset][0]
-            print("{} -- {} timezone calculated: {}".format(loop_id, single_report["file_name"], local_timezone))
-            sample_data["local_time"] = sample_data["utc_time"].dt.tz_convert(local_timezone)
-            sample_data["rounded_local_time"] = pd.to_datetime(sample_data["local_time"], utc=True).dt.ceil(
-                freq="5min"
-            )
+                if pd.notnull(single_report["basal_rate_timeZone"]):
+                    utc_offset = datetime.timedelta(seconds=single_report["basal_rate_timeZone"])
+                elif "timezoneOffset" in data.columns:
+                    most_common_data_offset = data["timezoneOffset"].mode()[0]
+                    utc_offset = datetime.timedelta(minutes=most_common_data_offset)
+                else:
+                    print("No timezone could be calculated. Defaulting to GMT-6")
+                    utc_offset = datetime.timedelta(minutes=360)
+                local_timezone = [tz for tz in pytz.all_timezones if utc_offset == pytz.timezone(tz)._utcoffset][0]
+                print("{} -- {} timezone calculated: {}".format(loop_id, single_report["file_name"], local_timezone))
+                sample_data["local_time"] = sample_data["utc_time"].dt.tz_convert(local_timezone)
+                sample_data["rounded_local_time"] = pd.to_datetime(sample_data["local_time"], utc=True).dt.ceil(
+                    freq="5min"
+                )
 
-            report_results = process_schedules(single_report, report_results)
+                report_results = process_schedules(single_report, report_results)
 
-            cgm_data = sample_data[sample_data["type"] == "cbg"].copy()
-            cgm_data["mg_dL"] = round(cgm_data["value"] * GLUCOSE_CONVERSION_FACTOR).astype(int)
+                cgm_data = sample_data[sample_data["type"] == "cbg"].copy()
+                cgm_data["mg_dL"] = round(cgm_data["value"] * GLUCOSE_CONVERSION_FACTOR).astype(int)
 
-            cgm_points_before_deduplication = len(cgm_data)
-            cgm_data = cgm_data[~cgm_data['rounded_local_time'].duplicated()]
-            cgm_points_after_deduplication = len(cgm_data)
-            report_results["cgm_deduplicated_points"] = cgm_points_before_deduplication - cgm_points_after_deduplication
+                cgm_points_before_deduplication = len(cgm_data)
+                cgm_data = cgm_data[~cgm_data['rounded_local_time'].duplicated()]
+                cgm_points_after_deduplication = len(cgm_data)
+                report_results["cgm_deduplicated_points"] = cgm_points_before_deduplication - cgm_points_after_deduplication
 
-            if cgm_points_after_deduplication > 0:
-                report_results = process_cgm_data(cgm_data, report_results)
-            else:
-                report_results["percent_cgm_available"] = 0
+                if cgm_points_after_deduplication > 0:
+                    report_results = process_cgm_data(cgm_data, report_results)
+                else:
+                    report_results["percent_cgm_available"] = 0
 
-            # results_filename = '{}-report-{}-results.csv'.format(loop_id, report_idx)
-            # report_results.to_csv(os.path.join(results_location, results_filename), index=False)
-            all_results.append(report_results)
+                # results_filename = '{}-report-{}-results.csv'.format(loop_id, report_idx)
+                # report_results.to_csv(os.path.join(results_location, results_filename), index=False)
+                all_results.append(report_results)
+            except Exception as e:
+                print('{} - FAILED with error: ' + str(e))
 
 
 all_results = pd.concat(all_results).reset_index(drop=True)
