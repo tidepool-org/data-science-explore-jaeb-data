@@ -151,7 +151,7 @@ def build_schedule_24hr_array(schedule_list):
 
     schedule_24hr_array.schedule.ffill(inplace=True)
 
-    if pd.isnull(schedule_24hr_array.loc[0])['schedule']:
+    if pd.isnull(schedule_24hr_array.loc[0])["schedule"]:
         # No schedules at midnight, carry forward value from the last day
         schedule_24hr_array.loc[0, "schedule"] = schedule_24hr_array.loc[1439, "schedule"]
         schedule_24hr_array.schedule.ffill(inplace=True)
@@ -246,9 +246,9 @@ def process_schedules(single_report, report_results):
             basal_rate_schedule_string
         )
 
-        report_results['scheduled_basal_rate_schedule_count'] = basal_rate_schedule_count
-        report_results['scheduled_basal_rate_median'] = basal_rate_median
-        report_results['scheduled_basal_rate_geomean'] = basal_rate_geomean
+        report_results["scheduled_basal_rate_schedule_count"] = basal_rate_schedule_count
+        report_results["scheduled_basal_rate_median"] = basal_rate_median
+        report_results["scheduled_basal_rate_geomean"] = basal_rate_geomean
 
     isf_schedule_string = single_report["insulin_sensitivity_factor_schedule"]
     if pd.notnull(isf_schedule_string):
@@ -256,9 +256,9 @@ def process_schedules(single_report, report_results):
             isf_schedule_string, str(single_report["insulin_sensitivity_factor_unit"])
         )
 
-        report_results['isf_schedule_count'] = isf_schedule_count
-        report_results['isf_median'] = isf_median
-        report_results['isf_geomean'] = isf_geomean
+        report_results["isf_schedule_count"] = isf_schedule_count
+        report_results["isf_median"] = isf_median
+        report_results["isf_geomean"] = isf_geomean
 
     carb_ratio_schedule_string = single_report["carb_ratio_schedule"]
 
@@ -267,9 +267,9 @@ def process_schedules(single_report, report_results):
             carb_ratio_schedule_string
         )
 
-        report_results['carb_ratio_schedule_count'] = carb_ratio_schedule_count
-        report_results['carb_ratio_median'] = carb_ratio_median
-        report_results['carb_ratio_geomean'] = carb_ratio_geomean
+        report_results["carb_ratio_schedule_count"] = carb_ratio_schedule_count
+        report_results["carb_ratio_median"] = carb_ratio_median
+        report_results["carb_ratio_geomean"] = carb_ratio_geomean
 
     correction_range_schedule_string = single_report["correction_range_schedule"]
     if pd.notnull(correction_range_schedule_string):
@@ -285,13 +285,13 @@ def process_schedules(single_report, report_results):
             correction_range_schedule_string, str(single_report["insulin_sensitivity_factor_unit"])
         )
 
-        report_results['correction_range_schedule_count'] = correction_range_schedule_count
-        report_results['bg_target_lower_median'] = bg_target_lower_median
-        report_results['bg_target_lower_geomean'] = bg_target_lower_geomean
-        report_results['bg_target_midpoint_median'] = bg_target_midpoint_median
-        report_results['bg_target_midpoint_geomean'] = bg_target_midpoint_geomean
-        report_results['bg_target_upper_median'] = bg_target_upper_median
-        report_results['bg_target_upper_geomean'] = bg_target_upper_geomean
+        report_results["correction_range_schedule_count"] = correction_range_schedule_count
+        report_results["bg_target_lower_median"] = bg_target_lower_median
+        report_results["bg_target_lower_geomean"] = bg_target_lower_geomean
+        report_results["bg_target_midpoint_median"] = bg_target_midpoint_median
+        report_results["bg_target_midpoint_geomean"] = bg_target_midpoint_geomean
+        report_results["bg_target_upper_median"] = bg_target_upper_median
+        report_results["bg_target_upper_geomean"] = bg_target_upper_geomean
 
     return report_results
 
@@ -305,9 +305,7 @@ def process_cgm_data(cgm_data, report_results):
 
     percent_above_250 = round(100 * (sum(cgm_values > 250) / cgm_count), ROUND_PRECISION)
     percent_above_180 = round(100 * (sum(cgm_values > 180) / cgm_count), 4)
-    percent_70_180 = round(
-        100 * (sum((cgm_values >= 70) & (cgm_values <= 180)) / cgm_count), ROUND_PRECISION
-    )
+    percent_70_180 = round(100 * (sum((cgm_values >= 70) & (cgm_values <= 180)) / cgm_count), ROUND_PRECISION)
     percent_54_70 = round(100 * (sum((cgm_values >= 54) & (cgm_values <= 70)) / cgm_count), ROUND_PRECISION)
     percent_below_70 = round(100 * (sum(cgm_values < 70)) / cgm_count, ROUND_PRECISION)
     percent_below_54 = round(100 * (sum(cgm_values < 54)) / cgm_count, ROUND_PRECISION)
@@ -337,6 +335,8 @@ def process_cgm_data(cgm_data, report_results):
     report_results["HBGI_RS"] = HBGI_RS
 
     return report_results
+
+
 # %%
 start_time = time.time()
 
@@ -392,8 +392,8 @@ for loop_id_index in range(len(unique_loop_ids)):
 
             if pd.notnull(single_report["basal_rate_timeZone"]):
                 utc_offset = datetime.timedelta(seconds=single_report["basal_rate_timeZone"])
-            elif 'timezoneOffset' in data.columns:
-                most_common_data_offset = data['timezoneOffset'].mode()[0]
+            elif "timezoneOffset" in data.columns:
+                most_common_data_offset = data["timezoneOffset"].mode()[0]
                 utc_offset = datetime.timedelta(minutes=most_common_data_offset)
             else:
                 print("No timezone could be calculated. Defaulting to GMT-6")
@@ -401,13 +401,21 @@ for loop_id_index in range(len(unique_loop_ids)):
             local_timezone = [tz for tz in pytz.all_timezones if utc_offset == pytz.timezone(tz)._utcoffset][0]
             print("{} -- {} timezone calculated: {}".format(loop_id, single_report["file_name"], local_timezone))
             sample_data["local_time"] = sample_data["utc_time"].dt.tz_convert(local_timezone)
+            sample_data["rounded_local_time"] = pd.to_datetime(sample_data["local_time"], utc=True).dt.ceil(
+                freq="5min"
+            )
 
             report_results = process_schedules(single_report, report_results)
 
             cgm_data = sample_data[sample_data["type"] == "cbg"].copy()
             cgm_data["mg_dL"] = round(cgm_data["value"] * GLUCOSE_CONVERSION_FACTOR).astype(int)
 
-            if len(cgm_data) > 0:
+            cgm_points_before_deduplication = len(cgm_data)
+            cgm_data = cgm_data[~cgm_data['rounded_local_time'].duplicated()]
+            cgm_points_after_deduplication = len(cgm_data)
+            report_results["cgm_deduplicated_points"] = cgm_points_before_deduplication - cgm_points_after_deduplication
+
+            if cgm_points_after_deduplication > 0:
                 report_results = process_cgm_data(cgm_data, report_results)
             else:
                 report_results["percent_cgm_available"] = 0
@@ -422,9 +430,9 @@ today_timestamp = datetime.datetime.now().strftime("%Y-%m-%d")
 
 bmi_data_location = "data/Loop BMI Data.csv"
 bmi_data = pd.read_csv(bmi_data_location)
-bmi_data.columns = ['loop_id'] + list(bmi_data.columns[1:])
+bmi_data.columns = ["loop_id"] + list(bmi_data.columns[1:])
 
-all_results = all_results.merge(bmi_data, on='loop_id', how='left')
+all_results = all_results.merge(bmi_data, on="loop_id", how="left")
 all_results.to_csv("data/processed/PHI-issue-report-analysis-results-{}.csv".format(today_timestamp), index=False)
 
 end_time = time.time()
