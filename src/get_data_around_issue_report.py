@@ -151,6 +151,11 @@ def build_schedule_24hr_array(schedule_list):
 
     schedule_24hr_array.schedule.ffill(inplace=True)
 
+    if pd.isnull(schedule_24hr_array.loc[0, "schedule"]):
+        # No schedules at midnight, carry forward value from the last day
+        schedule_24hr_array.loc[0, "schedule"] = schedule_24hr_array.loc[1439, "schedule"]
+        schedule_24hr_array.schedule.ffill(inplace=True)
+
     return schedule_24hr_array
 
 
