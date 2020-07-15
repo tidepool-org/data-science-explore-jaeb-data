@@ -146,6 +146,8 @@ def build_schedule_24hr_array(schedule_list):
         startTime = schedule["startTime"]
         if isinstance(startTime, str):
             startTime = float(startTime)
+        if (startTime < 0) and (len(schedule_list) == 1):
+            startTime = 0
         startTime_minutes = int(startTime / 60)
         schedule_24hr_array.loc[startTime_minutes, "schedule"] = schedule["value"]
 
