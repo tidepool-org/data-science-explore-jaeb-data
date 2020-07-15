@@ -37,6 +37,7 @@ for dirpath, dirnames, filenames in os.walk(issue_reports_location):
 passed = []
 failed = []
 
+# %%
 for i in range(len(files)):
 
     if i % 100 == 0:
@@ -56,26 +57,30 @@ for i in range(len(files)):
             parsed_issue_report_df[k][0] = parsed_issue_report_dict[k]
 
         loop_id = paths[i].split("/")[-1]
-        report_date = files[i][12:22]
+
+        with open(os.path.join(paths[i], files[i]), "r") as file:
+            report = file.read()
+
+        report_timestamp = report.split("Generated: ")[1].split("\n")[0]
         parsed_issue_report_df.insert(0, "loop_id", loop_id)
-        parsed_issue_report_df.insert(1, "report_date", report_date)
+        parsed_issue_report_df.insert(1, "report_timestamp", report_timestamp)
 
         issue_report_df_list.append(parsed_issue_report_df)
         passed.append(i)
     except:
         failed.append(i)
 # %%
-#print("Unique Parser Print Buffer Contents: \n")
-#set(print_buffer)
+# print("Unique Parser Print Buffer Contents: \n")
+# set(print_buffer)
 # %%
-today_date_str = datetime.datetime.now().strftime('%Y-%m-%d')
+today_date_str = datetime.datetime.now().strftime("%Y-%m-%d")
 all_issue_reports = pd.concat(issue_report_df_list, sort=False)
-all_issue_reports.to_csv("all-parsed-results-{}.csv.gz".format(today_date_str), compression='gzip', index=False)
+all_issue_reports.to_csv("all-parsed-results-{}.csv.gz".format(today_date_str), compression="gzip", index=False)
 
 # %% Filter just Loop settings dataframe
 settings_cols = [
     "loop_id",
-    "report_date",
+    "report_timestamp",
     "file_name",
     "loop_version",
     "rileyLink_radio_firmware",
