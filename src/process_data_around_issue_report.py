@@ -239,9 +239,10 @@ def check_settings_units(single_report):
     isf_units = str(single_report["insulin_sensitivity_factor_unit"])
 
     for isf_field in isf_fields:
-        single_report[isf_field] = convert_setting_to_mg_dl(single_report[isf_field], isf_units)
-        if single_report[isf_field] < 0:
-            contains_incorrect_settings_value = True
+        if isf_field in single_report:
+            single_report[isf_field] = convert_setting_to_mg_dl(single_report[isf_field], isf_units)
+            if single_report[isf_field] < 0:
+                contains_incorrect_settings_value = True
 
     # Target Ranges
     target_range_fields = [
@@ -264,7 +265,9 @@ def check_settings_units(single_report):
             target_units = "mmol"
         else:
             target_units = "mg/dL"
-        single_report[field] = convert_setting_to_mg_dl(single_report[field], target_units)
+
+        if field in single_report:
+            single_report[field] = convert_setting_to_mg_dl(single_report[field], target_units)
 
     single_report["contains_incorrect_settings_value"] = contains_incorrect_settings_value
 
@@ -402,7 +405,7 @@ def get_cgm_stats(cgm_data, single_report):
     days_of_cgm_data = cgm_day_delta.days + cgm_day_delta.seconds / 60 / 60 / 24
     cgm_values = cgm_data["mg_dL"].values
     cgm_count = len(cgm_values)
-    possible_cgm_points = int(days_of_cgm_data * DAILY_POSSIBLE_CGM_POINTS)
+    possible_cgm_points = int(days_of_cgm_data * DAILY_POSSIBLE_CGM_POINTS) + 1
     percent_cgm_available = round(100 * (cgm_count / possible_cgm_points), ROUND_PRECISION)
     single_report["percent_cgm_available"] = percent_cgm_available
 
@@ -687,9 +690,5 @@ if __name__ == "__main__":
         args.dataset_path,
         args.individual_report_results_path,
     )
-
-    # Debugging sample
-    # loop_id = "LOOP-0041"
-    # dataset_path = "data/processed/PHI-compressed-data/study-jaeb-tp-clone-0184-LOOP-0041tsv.gz"
 
     main(loop_id, dataset_path, individual_report_results_path, issue_reports)
