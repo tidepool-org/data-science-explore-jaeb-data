@@ -133,7 +133,7 @@ def save_flattened_dataset_to_parquet(flattened_df, processed_data_location, dat
 
 
 def save_flattened_dataset_to_gzip(flattened_df, processed_data_location, dataset_name):
-    compressed_dataset_name = dataset_name[:-5] + ".gz"
+    compressed_dataset_name = dataset_name[:-5] + "tsv.gz"
     compressed_save_location = processed_data_location + "PHI-compressed-data/"
     flattened_df.to_csv(compressed_save_location + compressed_dataset_name, sep="\t", compression="gzip")
 
