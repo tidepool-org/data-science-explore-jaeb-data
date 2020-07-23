@@ -226,7 +226,7 @@ def build_schedule_24hr_array(schedule_list, schedule_name):
         schedule_24hr_array.loc[0, schedule_name] = schedule_24hr_array.loc[1435, schedule_name]
         schedule_24hr_array[schedule_name].ffill(inplace=True)
 
-    schedule_24hr_array["interval_of_day_5min"] = freq_5min_array
+    schedule_24hr_array["day_interval_5min"] = freq_5min_array
 
     return schedule_24hr_array
 
@@ -614,10 +614,9 @@ def process_daily_insulin_and_carb_data(single_report, buffered_sample_data, sam
     single_report, buffered_5min_ts = process_basal_data(single_report, buffered_sample_data, buffered_5min_ts)
     single_report, buffered_5min_ts = process_bolus_data(single_report, buffered_sample_data, buffered_5min_ts)
     single_report, buffered_5min_ts = process_carb_data(single_report, buffered_sample_data, buffered_5min_ts)
-    buffered_5min_ts["total_insulin_delivered"] = (
-            buffered_5min_ts["basal_pulse_delivered"] +
-            buffered_5min_ts["normal"].fillna(0)
-    )
+    buffered_5min_ts["total_insulin_delivered"] = buffered_5min_ts["basal_pulse_delivered"] + buffered_5min_ts[
+        "normal"
+    ].fillna(0)
 
     # Get insulin on board for all basal/bolus data
     buffered_5min_ts = calculate_iob_for_timeseries(buffered_5min_ts)
@@ -675,6 +674,14 @@ def process_daily_insulin_and_carb_data(single_report, buffered_sample_data, sam
     return single_report, insulin_carb_5min_ts
 
 
+def merge_data(left, right, merge_on):
+
+    if len(right) > 0:
+        merged_data = left.merge(right, on=merge_on, how="left")
+
+    return merged_data
+
+
 def combine_all_data_into_timeseries(
     sample_start_time,
     sample_end_time,
@@ -685,25 +692,33 @@ def combine_all_data_into_timeseries(
     carb_ratio_24hr_schedule,
     correction_range_24hr_schedule,
 ):
+    combined_5min_ts = create_5min_ts(sample_start_time, sample_end_time)
 
-    merged_data = create_5min_ts(sample_start_time, sample_end_time)
-    merged_data = merged_data.merge(cgm_data[["rounded_local_time", "mg_dL"]], on="rounded_local_time", how="left")
-    merged_data = merged_data.merge(insulin_carb_5min_ts, on="rounded_local_time", how="left")
+    merge_on_rounded_time = [cgm_data["rounded_local_time", "mg_dL"], insulin_carb_5min_ts]
+    merge_on_interval = [
+        insulin_carb_5min_ts,
+        basal_rate_24hr_schedule,
+        isf_24hr_schedule,
+        carb_ratio_24hr_schedule,
+        correction_range_24hr_schedule,
+    ]
 
-    merged_data["interval_of_day_5min"] = (merged_data["rounded_local_time"].dt.hour * 60) + merged_data[
-        "rounded_local_time"
-    ].dt.minute
-    merged_data = merged_data.merge(basal_rate_24hr_schedule, on="interval_of_day_5min", how="left")
-    merged_data = merged_data.merge(isf_24hr_schedule, on="interval_of_day_5min", how="left")
-    merged_data = merged_data.merge(carb_ratio_24hr_schedule, on="interval_of_day_5min", how="left")
-    merged_data = merged_data.merge(correction_range_24hr_schedule, on="interval_of_day_5min", how="left")
+    for right_item in merge_on_rounded_time:
+        combined_5min_ts = merge_data(left=combined_5min_ts, right=right_item, merge_on="rounded_local_time")
+
+    interval_hours_in_minutes = combined_5min_ts["rounded_local_time"].dt.hour * 60
+    interval_minutes = combined_5min_ts["rounded_local_time"].dt.minute
+    combined_5min_ts["day_interval_5min"] = interval_hours_in_minutes + interval_minutes
+
+    for right_item in merge_on_interval:
+        combined_5min_ts = merge_data(left=combined_5min_ts, right=right_item, merge_on="day_interval_5min")
 
     # Rename columns
-    merged_data.rename(columns={"mg_dL": "cgm", "rate": "set_basal_rate", "normal": "bolus"}, inplace=True)
-    drop_cols = ["date", "interval_of_day_5min", "correction_range", "bg_target_midpoint", "bg_target_span"]
-    merged_data.drop(columns=drop_cols, inplace=True)
+    combined_5min_ts.rename(columns={"mg_dL": "cgm", "rate": "set_basal_rate", "normal": "bolus"}, inplace=True)
+    drop_cols = ["date", "day_interval_5min", "correction_range", "bg_target_midpoint", "bg_target_span"]
+    combined_5min_ts.drop(columns=drop_cols, inplace=True)
 
-    return merged_data
+    return combined_5min_ts
 
 
 def main(loop_id, issue_reports, dataset_path, individual_report_results_save_path, individual_data_samples_save_path):
@@ -741,7 +756,7 @@ def main(loop_id, issue_reports, dataset_path, individual_report_results_save_pa
                     single_report, buffered_sample_data, sample_start_time, local_timezone
                 )
 
-                all_data_combined_5min_ts = combine_all_data_into_timeseries(
+                combined_5min_ts = combine_all_data_into_timeseries(
                     sample_start_time,
                     sample_end_time,
                     cgm_data,
@@ -754,7 +769,7 @@ def main(loop_id, issue_reports, dataset_path, individual_report_results_save_pa
 
                 data_filename = "{}-report-{}-time-series.csv".format(loop_id, report_idx)
                 data_save_path = os.path.join(individual_data_samples_save_path, data_filename)
-                all_data_combined_5min_ts.to_csv(data_save_path, index=False)
+                combined_5min_ts.to_csv(data_save_path, index=False)
 
             else:
                 single_report["surrounding_data_available"] = False
@@ -762,7 +777,7 @@ def main(loop_id, issue_reports, dataset_path, individual_report_results_save_pa
             save_filename = "PHI-{}-report-{}-summary-statistics.csv".format(loop_id, report_idx)
             save_path = os.path.join(individual_report_results_save_path, save_filename)
             single_report = pd.DataFrame(single_report).T
-            single_report.insert(1, 'report_num', report_idx)
+            single_report.insert(1, "report_num", report_idx)
             single_report.to_csv(save_path, index=False)
 
         except Exception as e:
