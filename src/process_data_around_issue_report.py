@@ -489,7 +489,7 @@ def process_cgm_data(single_report, buffered_sample_data, sample_start_time):
         buffered_sample_data["type"] == "cbg"
     )
     cgm_data = buffered_sample_data[cgm_data_loc].copy()
-    cgm_data["mg_dL"] = (cgm_data["value"] * GLUCOSE_CONVERSION_FACTOR).round(ROUND_PRECISION).astype(int)
+    cgm_data["mg_dL"] = np.round(cgm_data["value"] * GLUCOSE_CONVERSION_FACTOR).astype(int)
     cgm_points_before_deduplication = len(cgm_data)
 
     if cgm_points_before_deduplication > 0:
