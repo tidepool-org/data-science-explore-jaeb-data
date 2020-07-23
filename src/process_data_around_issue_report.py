@@ -525,6 +525,9 @@ def create_5min_ts(first_timestamp, last_timestamp):
 
     contiguous_ts = pd.date_range(first_timestamp, last_timestamp, freq="5min")
     daily_5min_ts = pd.DataFrame(contiguous_ts, columns=["rounded_local_time"])
+    interval_hours_in_minutes = daily_5min_ts["rounded_local_time"].dt.hour * 60
+    interval_minutes = daily_5min_ts["rounded_local_time"].dt.minute
+    daily_5min_ts["day_interval_5min"] = interval_hours_in_minutes + interval_minutes
 
     return daily_5min_ts
 
@@ -678,6 +681,8 @@ def merge_data(left, right, merge_on):
 
     if len(right) > 0:
         merged_data = left.merge(right, on=merge_on, how="left")
+    else:
+        merged_data = left
 
     return merged_data
 
@@ -696,7 +701,6 @@ def combine_all_data_into_timeseries(
 
     merge_on_rounded_time = [cgm_data[["rounded_local_time", "mg_dL"]], insulin_carb_5min_ts]
     merge_on_interval = [
-        insulin_carb_5min_ts,
         basal_rate_24hr_schedule,
         isf_24hr_schedule,
         carb_ratio_24hr_schedule,
@@ -706,16 +710,13 @@ def combine_all_data_into_timeseries(
     for right_item in merge_on_rounded_time:
         combined_5min_ts = merge_data(left=combined_5min_ts, right=right_item, merge_on="rounded_local_time")
 
-    interval_hours_in_minutes = combined_5min_ts["rounded_local_time"].dt.hour * 60
-    interval_minutes = combined_5min_ts["rounded_local_time"].dt.minute
-    combined_5min_ts["day_interval_5min"] = interval_hours_in_minutes + interval_minutes
-
     for right_item in merge_on_interval:
         combined_5min_ts = merge_data(left=combined_5min_ts, right=right_item, merge_on="day_interval_5min")
 
     # Rename columns
     combined_5min_ts.rename(columns={"mg_dL": "cgm", "rate": "set_basal_rate", "normal": "bolus"}, inplace=True)
     drop_cols = ["date", "day_interval_5min", "correction_range", "bg_target_midpoint", "bg_target_span"]
+    drop_cols = set(combined_5min_ts.columns) & set(drop_cols)
     combined_5min_ts.drop(columns=drop_cols, inplace=True)
 
     return combined_5min_ts
