@@ -153,6 +153,20 @@ def dka_risk_score(hours_with_less_50percent_sbr_iob):
 
 
 def remove_overlapping_issue_reports(reports_from_one_id):
+    """
+    Some issue reports occur on the same day or within a certain amount of time.
+    Only use reports that are at least ANALYSIS_WINDOW_DAYS (default 7) away from the last.
+
+    Parameters
+    ----------
+    reports_from_one_id : pandas.DataFrame
+        A dataframe containing all issue reports from one loop_id
+
+    Returns
+    -------
+        reports_from_one_id : pandas.DataFrame
+            A dataframe containing all issue reports from one loop_id
+    """
 
     for i in range(len(reports_from_one_id)):
         no_overlap = ~(reports_from_one_id["report_timestamp"].diff().dt.days < ANALYSIS_WINDOW_DAYS)
@@ -162,6 +176,22 @@ def remove_overlapping_issue_reports(reports_from_one_id):
 
 
 def get_start_and_end_times(single_report, local_timezone):
+    """
+    The ± ANALYSIS_WINDOW_DAYS timestamps are needed to cut the data properly
+
+    Parameters
+    ----------
+    single_report : pd.Series
+        A single issue report containing settings, report time, and other information
+    local_timezone : str
+        The name of the local timezone name calculated from the issue report's timezone offset
+
+    Returns
+    -------
+    sample_start_time : datetime
+    sample_end_time : datetime
+
+    """
     issue_report_date = single_report["report_timestamp"].tz_convert(local_timezone).floor(freq="1d")
     sample_start_time = issue_report_date - datetime.timedelta(days=ANALYSIS_WINDOW_DAYS)
     sample_end_time = issue_report_date + datetime.timedelta(days=ANALYSIS_WINDOW_DAYS) - datetime.timedelta(minutes=5)
@@ -170,6 +200,23 @@ def get_start_and_end_times(single_report, local_timezone):
 
 
 def get_sample_data_with_buffer(data, sample_start_time, sample_end_time, local_timezone):
+    """
+    The data must be cut at the start/end times, but in order to calculate the proper insulin-on-board
+    and basal rate data, an additional amount of buffer data is needed prior to the star time. In this case, 1 day.
+
+    Parameters
+    ----------
+    data : pandas.DataFrame
+        A complete flattened Jaeb / Tidepool dataset
+    sample_start_time : datetime
+    sample_end_time : datetime
+    local_timezone : str
+
+    Returns
+    -------
+    buffered_sample_data : pandas.DataFrame
+        A slice from the main data containing ± ANALYSIS_WINDOW_DAYS and an additional 1-day buffer before the start
+    """
     temp_time = data["time"].copy()
     temp_rounded_local_time = temp_time.dt.ceil(freq="5min").dt.tz_convert(local_timezone)
 
@@ -186,6 +233,24 @@ def get_sample_data_with_buffer(data, sample_start_time, sample_end_time, local_
 
 
 def get_timezone_from_issue_report(single_report, data):
+    """
+    The local time is needed to match up setting schedules to the data.
+    To make this conversion, the local timezone is needed and often provided by the issue report.
+
+    Parameters
+    ----------
+    single_report : pandas.Series
+        A single issue report, containing the timezone offset in seconds
+    data : pandas.DataFrame
+        The entire Jaeb dataset from the study participant.
+        The timezoneOffset column is used in case the issue report does not have a timezone set
+
+    Returns
+    -------
+    local_timzone : str
+        The name of the local timezone name calculated from the issue report's timezone offset
+
+    """
     if pd.notnull(single_report["basal_rate_timeZone"]):
         utc_offset = datetime.timedelta(seconds=single_report["basal_rate_timeZone"])
     elif "timezoneOffset" in data.columns:
@@ -201,16 +266,33 @@ def get_timezone_from_issue_report(single_report, data):
     return local_timezone
 
 
-def build_schedule_24hr_array(schedule_list, schedule_name):
+def build_schedule_24hr_array(schedule_dict, schedule_name):
+    """
+    Loop settings are stored in a schedule profile that describes the value and time they change in a 24-hour period.
+    In order to calculate the time-weighted metrics of each setting, a continuous high frequency 24-hour time series
+    is needed.
+
+    Parameters
+    ----------
+    schedule_dict : dict
+        The dictionary of settings, containing a start time from local time midnight in seconds and the setting's value
+    schedule_name : str
+
+    Returns
+    -------
+    schedule_24hr_array : pandas.DataFrame
+        Contains a 5-minute interval time series of settings from 12am (interval 0) to 11:55pm (interval 1435)
+
+    """
 
     freq_5min_array = np.arange(0, 1440, 5)
     schedule_24hr_array = pd.DataFrame(index=freq_5min_array, columns=[schedule_name])
 
-    for schedule in schedule_list:
+    for schedule in schedule_dict:
         startTime = schedule["startTime"]
         if isinstance(startTime, str):
             startTime = float(startTime)
-        if (startTime < 0) and (len(schedule_list) == 1):
+        if (startTime < 0) and (len(schedule_dict) == 1):
             startTime = 0
         startTime_minutes = int(startTime / 60)
 
@@ -232,6 +314,22 @@ def build_schedule_24hr_array(schedule_list, schedule_name):
 
 
 def convert_setting_to_mg_dl(value, units):
+    """
+    Converts a setting from mmol/L to mg/dL
+
+    Parameters
+    ----------
+    value : int or float
+        The value to be converted
+    units : str
+        The units of the value
+
+    Returns
+    -------
+    value : float
+        The value in mg/dL
+
+    """
     if units == "mmol":
         value = round(value * GLUCOSE_CONVERSION_FACTOR, ROUND_PRECISION)
 
@@ -239,6 +337,20 @@ def convert_setting_to_mg_dl(value, units):
 
 
 def check_settings_units(single_report):
+    """
+    Issue report settings should all be in mg/dL, but some reports have a mixture of both mg/dL and mmol/L.
+
+    Parameters
+    ----------
+    single_report : pandas.Series
+        The issue report's series of settings and results
+
+    Returns
+    -------
+    single_report : pandas.Series
+        An issue report with proper mg/dL settings values
+
+    """
     all_fields = []
     contains_incorrect_settings_value = False
 
@@ -291,9 +403,25 @@ def check_settings_units(single_report):
 
 
 def process_carb_ratio_schedule(carb_ratio_schedule_string):
-    schedule_list = ast.literal_eval(carb_ratio_schedule_string)
-    carb_ratio_schedule_count = len(schedule_list)
-    carb_ratio_24hr_schedule = build_schedule_24hr_array(schedule_list, "carb_ratio")
+    """
+    Converting the carb ratio schedule string into an actual 24 hour schedule and summary information
+
+    Parameters
+    ----------
+    carb_ratio_schedule_string : str
+        A string representation of the schedule dictionary as stored in the issue report
+
+    Returns
+    -------
+    carb_ratio_schedule_count : int
+    carb_ratio_median : float
+    carb_ratio_geomean : float
+    carb_ratio_24hr_schedule : pandas.DataFrame
+
+    """
+    schedule_dict = ast.literal_eval(carb_ratio_schedule_string)
+    carb_ratio_schedule_count = len(schedule_dict)
+    carb_ratio_24hr_schedule = build_schedule_24hr_array(schedule_dict, "carb_ratio")
     carb_ratio_median = carb_ratio_24hr_schedule["carb_ratio"].median()
     carb_ratio_geomean = np.exp(np.log(carb_ratio_24hr_schedule["carb_ratio"]).mean())
 
@@ -301,9 +429,25 @@ def process_carb_ratio_schedule(carb_ratio_schedule_string):
 
 
 def process_isf_schedule(isf_schedule_string):
-    schedule_list = ast.literal_eval(isf_schedule_string)
-    isf_schedule_count = len(schedule_list)
-    isf_24hr_schedule = build_schedule_24hr_array(schedule_list, "isf")
+    """
+    Converting the insulin sensitivity factor (isf) schedule string into an actual 24 hour schedule with summary info
+
+    Parameters
+    ----------
+    isf_schedule_string : str
+        A string representation of the schedule dictionary as stored in the issue report
+
+    Returns
+    -------
+    isf_schedule_count : int
+    isf_median : float
+    isf_geomean : float
+    isf_24hr_schedule : pandas.DataFrame
+
+    """
+    schedule_dict = ast.literal_eval(isf_schedule_string)
+    isf_schedule_count = len(schedule_dict)
+    isf_24hr_schedule = build_schedule_24hr_array(schedule_dict, "isf")
     isf_median = isf_24hr_schedule["isf"].median()
     isf_geomean = np.exp(np.log(isf_24hr_schedule["isf"]).mean())
 
@@ -311,9 +455,25 @@ def process_isf_schedule(isf_schedule_string):
 
 
 def process_basal_rate_schedule(basal_rate_schedule_string):
-    basal_rate_schedule_list = ast.literal_eval(basal_rate_schedule_string)
-    basal_rate_schedule_count = len(basal_rate_schedule_list)
-    basal_rate_24hr_schedule = build_schedule_24hr_array(basal_rate_schedule_list, "sbr")
+    """
+    Converting the scheduled basal rate dictionary string into an actual 24 hour schedule with summary info
+
+    Parameters
+    ----------
+    basal_rate_schedule_string : str
+        A string representation of the schedule dictionary as stored in the issue report
+
+    Returns
+    -------
+    basal_rate_schedule_count : int
+    basal_rate_median : float
+    basal_rate_geomean : float
+    basal_rate_24hr_schedule : pandas.DataFrame
+
+    """
+    basal_rate_schedule_dict = ast.literal_eval(basal_rate_schedule_string)
+    basal_rate_schedule_count = len(basal_rate_schedule_dict)
+    basal_rate_24hr_schedule = build_schedule_24hr_array(basal_rate_schedule_dict, "sbr")
     basal_rate_median = basal_rate_24hr_schedule["sbr"].median()
     basal_rate_geomean = np.exp(np.log(basal_rate_24hr_schedule["sbr"]).mean())
 
@@ -321,9 +481,31 @@ def process_basal_rate_schedule(basal_rate_schedule_string):
 
 
 def process_correction_range_schedule(correction_range_schedule_string):
-    schedule_list = ast.literal_eval(correction_range_schedule_string)
-    correction_range_schedule_count = len(schedule_list)
-    correction_range_24hr_schedule = build_schedule_24hr_array(schedule_list, "correction_range")
+    """
+    Converting the correction_range schedule dictionary string into an actual 24 hour schedule with summary info.
+    The correction ranges are also in an array containing a the lower and upper target thresholds.
+
+    Parameters
+    ----------
+    correction_range_schedule_string : str
+        A string representation of the schedule dictionary as stored in the issue report
+
+    Returns
+    -------
+    correction_range_schedule_count : int
+    bg_target_lower_median : float
+    bg_target_lower_geomean : float
+    bg_target_midpoint_median : float
+    bg_target_midpoint_geomean : float
+    bg_target_upper_median : float
+    bg_target_upper_geomean : float
+    bg_target_span_median : float
+    correction_range_24hr_schedule : pandas.DataFrame
+
+    """
+    schedule_dict = ast.literal_eval(correction_range_schedule_string)
+    correction_range_schedule_count = len(schedule_dict)
+    correction_range_24hr_schedule = build_schedule_24hr_array(schedule_dict, "correction_range")
 
     correction_range_24hr_schedule["bg_target_lower"] = correction_range_24hr_schedule["correction_range"].apply(
         lambda x: x[0]
@@ -363,6 +545,26 @@ def process_correction_range_schedule(correction_range_schedule_string):
 
 
 def process_schedules(single_report):
+    """
+    The following 24-hour settings schedules need to be further parsed from the issue reports:
+        Basal Rates, Insulin Sensitivity Factor, Carb Ratio, and Correction Range
+    For each of these schedules, time-weighted statistics are calculated and the schedules are returned to be merged
+    into the rest of the cgm, insulin, and carb time series data.
+
+    Parameters
+    ----------
+    single_report : pandas.Series
+        The main issue report that contains all the schedule strings to be processed
+
+    Returns
+    -------
+    single_report : pandas.Series
+    basal_rate_24hr_schedule : pandas.DataFrame
+    isf_24hr_schedule : pandas.DataFrame
+    carb_ratio_24hr_schedule : pandas.DataFrame
+    correction_range_24hr_schedule : pandas.DataFrame
+
+    """
     basal_rate_schedule_string = single_report["basal_rate_schedule"]
     basal_rate_24hr_schedule = pd.DataFrame()
     if pd.notnull(basal_rate_schedule_string):
@@ -437,6 +639,21 @@ def process_schedules(single_report):
 
 
 def get_cgm_stats(cgm_data, single_report):
+    """
+
+    Parameters
+    ----------
+    cgm_data : pandas.DataFrame
+        A dataframe of only cgm data with a converted "mg_dL" column
+
+    single_report : pandas.Series
+        The issue report to append cgm statistics to
+
+    Returns
+    -------
+    single_report : pandas.Series
+
+    """
     cgm_day_delta = cgm_data["time"].max() - cgm_data["time"].min()
     days_of_cgm_data = cgm_day_delta.days + cgm_day_delta.seconds / 60 / 60 / 24
     cgm_values = cgm_data["mg_dL"].values
@@ -484,6 +701,24 @@ def get_cgm_stats(cgm_data, single_report):
 
 
 def process_cgm_data(single_report, buffered_sample_data, sample_start_time):
+    """
+    The cgm data must be extracted and deduplicated. Only data during the actual sample start/end period is needed, so
+    the buffered data is filtered.
+
+    Parameters
+    ----------
+    single_report : pandas.Series
+    buffered_sample_data : pandas.DataFrame
+    sample_start_time : datetime
+
+    Returns
+    -------
+    single_report : pandas.Series
+        The same issue report, now with cgm stats added in from get_cgm_stats()
+    cgm_data : pandas.DataFrame
+        Cleaned, processed, and rounded time series of the cgm data from around the issue report
+
+    """
     # Truncate buffered sample to main sample start time and cgm data
     cgm_data_loc = (buffered_sample_data["rounded_local_time"] >= sample_start_time) & (
         buffered_sample_data["type"] == "cbg"
@@ -507,6 +742,22 @@ def process_cgm_data(single_report, buffered_sample_data, sample_start_time):
 
 
 def calculate_iob_for_timeseries(daily_5min_ts):
+    """
+    Insulin-on-board is an important calculation for assessing DKA risk and other metrics.
+    The Simple Diabetes Metabolism Model can be used to add all the iob effects of evey insulin delivery pulse
+    within a time series.
+
+    Parameters
+    ----------
+    daily_5min_ts : pandas.DataFrame
+        A 5-min rounded time series containing the combined bolus and basal insulin delivered
+
+    Returns
+    -------
+    daily_5min_ts : pandas.DataFrame
+        The same dataframe, now with the "iob" data at every time step
+
+    """
     smm = SimpleMetabolismModel(insulin_sensitivity_factor=1, carb_insulin_ratio=1)
     _, _, _, insulin_decay_vector = smm.run(carb_amount=0, insulin_amount=1)
     all_iob_arrays = daily_5min_ts["total_insulin_delivered"].apply(lambda x: x * insulin_decay_vector)
@@ -522,6 +773,21 @@ def calculate_iob_for_timeseries(daily_5min_ts):
 
 
 def create_5min_ts(first_timestamp, last_timestamp):
+    """
+    Throughout the data, 5-minute interval time series steps are used to align data.
+    This function helps to create an empty time series which can be merged into.
+
+    Parameters
+    ----------
+    first_timestamp : datetime
+    last_timestamp : datetime
+
+    Returns
+    -------
+    daily_5min_ts : pandas.DataFrame
+        The 5-minute interval rounded time series dataframe
+
+    """
 
     contiguous_ts = pd.date_range(first_timestamp, last_timestamp, freq="5min")
     daily_5min_ts = pd.DataFrame(contiguous_ts, columns=["rounded_local_time"])
@@ -530,6 +796,21 @@ def create_5min_ts(first_timestamp, last_timestamp):
 
 
 def process_basal_data(single_report, buffered_sample_data, daily_5min_ts):
+    """
+    The basal data must be extracted, deduplicated, and merged into a 5-minute rounded local time series
+
+    Parameters
+    ----------
+    single_report : pandas.Series
+    buffered_sample_data : pandas.DataFrame
+    sample_start_time : datetime
+
+    Returns
+    -------
+    single_report : pandas.Series
+    daily_5min_ts : pandas.DataFrame
+
+    """
     basal_data = buffered_sample_data[buffered_sample_data["type"] == "basal"].copy()
     basals_before_deduplication = len(basal_data)
 
@@ -554,6 +835,21 @@ def process_basal_data(single_report, buffered_sample_data, daily_5min_ts):
 
 
 def process_bolus_data(single_report, buffered_sample_data, daily_5min_ts):
+    """
+    The bolus data must be extracted, deduplicated, and merged into a 5-minute rounded local time series
+
+    Parameters
+    ----------
+    single_report : pandas.Series
+    buffered_sample_data : pandas.DataFrame
+    sample_start_time : datetime
+
+    Returns
+    -------
+    single_report : pandas.Series
+    daily_5min_ts : pandas.DataFrame
+
+    """
     bolus_data = buffered_sample_data[buffered_sample_data["type"] == "bolus"].copy()
     boluses_before_deduplication = len(bolus_data)
 
@@ -576,6 +872,21 @@ def process_bolus_data(single_report, buffered_sample_data, daily_5min_ts):
 
 
 def process_carb_data(single_report, buffered_sample_data, daily_5min_ts):
+    """
+    The carb data must be extracted, deduplicated, and merged into a 5-minute rounded local time series
+
+    Parameters
+    ----------
+    single_report : pandas.Series
+    buffered_sample_data : pandas.DataFrame
+    sample_start_time : datetime
+
+    Returns
+    -------
+    single_report : pandas.Series
+    daily_5min_ts : pandas.DataFrame
+
+    """
     carb_data = buffered_sample_data[buffered_sample_data["type"] == "food"].copy()
     carb_entries_before_deduplication = len(carb_data)
 
@@ -607,6 +918,22 @@ def process_carb_data(single_report, buffered_sample_data, daily_5min_ts):
 
 
 def process_daily_insulin_and_carb_data(single_report, buffered_sample_data, sample_start_time, local_timezone):
+    """
+    All bolus, basal, and carb information must be extracted, deduplicated, and merged into a common time series
+
+    Parameters
+    ----------
+    single_report : pandas.Series
+    buffered_sample_data : pandas.DataFrame
+    sample_start_time : datetime
+    local_timezone : str
+
+    Returns
+    -------
+    single_report : pandas.Series
+    insulin_carb_5min_ts : pandas.DataFrame
+
+    """
     buffered_5min_ts = create_5min_ts(
         first_timestamp=buffered_sample_data["rounded_local_time"].min(),
         last_timestamp=buffered_sample_data["rounded_local_time"].max(),
@@ -675,6 +1002,20 @@ def process_daily_insulin_and_carb_data(single_report, buffered_sample_data, sam
 
 
 def merge_data(left, right, merge_on):
+    """
+    A helper function to making looping through merges faster.
+
+    Parameters
+    ----------
+    left : pandas.DataFrame
+    right : pandas.DataFrame
+    merge_on : str
+
+    Returns
+    -------
+    merged_data : pandas.DataFrame
+
+    """
 
     if len(right) > 0:
         merged_data = left.merge(right, on=merge_on, how="left")
@@ -694,6 +1035,25 @@ def combine_all_data_into_timeseries(
     carb_ratio_24hr_schedule,
     correction_range_24hr_schedule,
 ):
+    """
+    Once all cgm, insulin, carb, and schedule information are processed, they can all be combined into one time series
+
+    Parameters
+    ----------
+    sample_start_time : datetime
+    sample_end_time : datetime
+    cgm_data : pandas.DataFrame
+    insulin_carb_5min_ts : pandas.DataFrame
+    basal_rate_24hr_schedule : pandas.DataFrame
+    isf_24hr_schedule : pandas.DataFrame
+    carb_ratio_24hr_schedule : pandas.DataFrame
+    correction_range_24hr_schedule : pandas.DataFrame
+
+    Returns
+    -------
+    combined_5min_ts : pandas.DataFrame
+
+    """
     combined_5min_ts = create_5min_ts(sample_start_time, sample_end_time)
     interval_hours_in_minutes = combined_5min_ts["rounded_local_time"].dt.hour * 60
     interval_minutes = combined_5min_ts["rounded_local_time"].dt.minute
@@ -723,6 +1083,30 @@ def combine_all_data_into_timeseries(
 
 
 def main(loop_id, issue_reports, dataset_path, individual_report_results_save_path, individual_data_samples_save_path):
+    """
+    For each loop_id, gather the issue reports that do not overlap.
+    For each of of those issue reports, get the data ± ANALYSIS_WINDOW_DAYS around the report.
+    Calculate statistics over cgm, insulin, carb, and setting schedules.
+    Finally, combine all the data together into a single time series.
+
+    Parameters
+    ----------
+    loop_id : string
+        The Jaeb Participant loop id (LOOP-####)
+    issue_reports : pandas.DataFrame
+        The list of all issue reports (as created by parse_jaeb_issue_reports.py)
+    dataset_path : string
+        The path to the compressed and flattened dataset file (as created by batch-multiprocess-raw-jaeb-data.py)
+    individual_report_results_save_path : string
+        The folder path to save all the individual issue report summary results
+    individual_data_samples_save_path : string
+        The folder path to save the time series datasets to
+
+    Returns
+    -------
+    None
+
+    """
 
     data = pd.read_csv(dataset_path, sep="\t", compression="gzip", low_memory=False)
     data["time"] = pd.to_datetime(data["time"], utc=True)
