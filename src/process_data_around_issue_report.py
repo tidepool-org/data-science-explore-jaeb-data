@@ -694,7 +694,7 @@ def combine_all_data_into_timeseries(
 ):
     combined_5min_ts = create_5min_ts(sample_start_time, sample_end_time)
 
-    merge_on_rounded_time = [cgm_data["rounded_local_time", "mg_dL"], insulin_carb_5min_ts]
+    merge_on_rounded_time = [cgm_data[["rounded_local_time", "mg_dL"]], insulin_carb_5min_ts]
     merge_on_interval = [
         insulin_carb_5min_ts,
         basal_rate_24hr_schedule,
