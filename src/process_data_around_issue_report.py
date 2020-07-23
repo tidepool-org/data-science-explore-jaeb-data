@@ -222,8 +222,8 @@ def build_schedule_24hr_array(schedule_list, schedule_name):
     schedule_24hr_array[schedule_name].ffill(inplace=True)
 
     if pd.isnull(schedule_24hr_array.loc[0])[schedule_name]:
-        # No schedules at midnight, carry forward value from the last day
-        schedule_24hr_array.loc[0, schedule_name] = schedule_24hr_array.loc[1439, schedule_name]
+        # No schedules at midnight, carry forward value from end of 24hr period
+        schedule_24hr_array.loc[0, schedule_name] = schedule_24hr_array.loc[1435, schedule_name]
         schedule_24hr_array[schedule_name].ffill(inplace=True)
 
     schedule_24hr_array["interval_of_day_5min"] = freq_5min_array
