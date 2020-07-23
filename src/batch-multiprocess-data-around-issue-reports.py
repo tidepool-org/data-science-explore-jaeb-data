@@ -4,8 +4,8 @@ batch-multiprocess-data-around-issue-reports.py
 Author: Jason Meno
 
 Description:
-    Processes issue report schedules and gets ± 1 week of data surrounding issue reports and performs analytics
-     TODO: fills out a 5-min time-series normalized dataframe with settings for larger analyses
+    Processes issue report schedules and gets ± 1 week of data surrounding issue reports and calculates summary
+    statistics and creates 5-min timer series datasets
 
 Dependencies:
     - Compressed files:
