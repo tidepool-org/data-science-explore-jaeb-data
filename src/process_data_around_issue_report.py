@@ -525,9 +525,6 @@ def create_5min_ts(first_timestamp, last_timestamp):
 
     contiguous_ts = pd.date_range(first_timestamp, last_timestamp, freq="5min")
     daily_5min_ts = pd.DataFrame(contiguous_ts, columns=["rounded_local_time"])
-    interval_hours_in_minutes = daily_5min_ts["rounded_local_time"].dt.hour * 60
-    interval_minutes = daily_5min_ts["rounded_local_time"].dt.minute
-    daily_5min_ts["day_interval_5min"] = interval_hours_in_minutes + interval_minutes
 
     return daily_5min_ts
 
@@ -698,6 +695,9 @@ def combine_all_data_into_timeseries(
     correction_range_24hr_schedule,
 ):
     combined_5min_ts = create_5min_ts(sample_start_time, sample_end_time)
+    interval_hours_in_minutes = combined_5min_ts["rounded_local_time"].dt.hour * 60
+    interval_minutes = combined_5min_ts["rounded_local_time"].dt.minute
+    combined_5min_ts["day_interval_5min"] = interval_hours_in_minutes + interval_minutes
 
     merge_on_rounded_time = [cgm_data[["rounded_local_time", "mg_dL"]], insulin_carb_5min_ts]
     merge_on_interval = [
