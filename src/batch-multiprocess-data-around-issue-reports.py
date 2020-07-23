@@ -27,8 +27,9 @@ from multiprocessing import Pool, cpu_count
 
 # %% Functions
 
+
 def data_around_issue_report_subprocessor(
-    loop_id_index, unique_loop_ids, dataset_list, individual_report_results_path
+    loop_id_index, unique_loop_ids, dataset_list, individual_report_results_save_path, individual_data_samples_save_path
 ):
     if loop_id_index % 10 == 0:
         print("Starting: " + str(loop_id_index))
@@ -48,7 +49,6 @@ def data_around_issue_report_subprocessor(
         dataset_name = dataset_list[matched_dataset_index[0]]
         dataset_path = os.path.join(dataset_location, dataset_name)
 
-
     # Set the python unbuffered state to 1 to allow stdout buffer access
     # This allows continuous reading of subprocess output
     os.environ["PYTHONUNBUFFERED"] = "1"
@@ -60,8 +60,10 @@ def data_around_issue_report_subprocessor(
             loop_id,
             "-dataset_path",
             dataset_path,
-            "-individual_report_results_path",
-            individual_report_results_path,
+            "-individual_report_results_save_path",
+            individual_report_results_save_path,
+            "-individual_data_samples_save_path",
+            individual_data_samples_save_path,
         ],
         stdout=sub.PIPE,
         stderr=sub.PIPE,
@@ -84,12 +86,14 @@ def data_around_issue_report_subprocessor(
 
     return
 
+
 def combine_all_results(individual_report_results_path):
     results_filenames = pd.Series(os.listdir(individual_report_results_path))
     all_results = results_filenames.apply(lambda x: pd.read_csv(os.path.join(individual_report_results_path, x)))
     all_results = pd.concat(all_results.values).reset_index(drop=True)
 
     return all_results
+
 
 def find_closest_issue_report_to_event(loop_id, all_results, event_date):
     reports_from_one_id = all_results[all_results["loop_id"] == loop_id].copy()
@@ -162,15 +166,20 @@ def add_dka_event_data_to_results(all_results, dka_data_location):
 
     return all_results
 
+
 # %%
 if __name__ == "__main__":
+    today_timestamp = datetime.datetime.now().strftime("%Y-%m-%d")
     start_time = time.time()
 
     dataset_location = "data/processed/PHI-compressed-data/"
-    individual_report_results_path = "data/processed/individual_report_results/"
+    individual_report_results_save_path = "data/processed/individual-report-results-{}/".format(today_timestamp)
+    individual_data_samples_save_path = "data/processed/time-series-data-around-issue-reports-{}/".format(today_timestamp)
+    save_dirs = [individual_report_results_save_path, individual_data_samples_save_path]
 
-    if not os.path.exists(individual_report_results_path):
-        os.makedirs(individual_report_results_path)
+    for dir in save_dirs:
+        if not os.path.exists(dir):
+            os.makedirs(dir)
 
     dataset_list = os.listdir(dataset_location)
     issue_reports = pd.read_csv("data/PHI-parsed-loop-settings-from-issue-reports-2020-07-14.csv")
@@ -182,7 +191,14 @@ if __name__ == "__main__":
 
     pool_array = [
         pool.apply_async(
-            data_around_issue_report_subprocessor, args=[loop_id_index, unique_loop_ids, dataset_list, individual_report_results_path],
+            data_around_issue_report_subprocessor,
+            args=[
+                loop_id_index,
+                unique_loop_ids,
+                dataset_list,
+                individual_report_results_save_path,
+                individual_data_samples_save_path,
+            ],
         )
         for loop_id_index in range(len(unique_loop_ids))
     ]
@@ -191,7 +207,7 @@ if __name__ == "__main__":
     pool.join()
 
     # Combine all results and add BMI/Age and Adverse Event Data
-    all_results = combine_all_results(individual_report_results_path)
+    all_results = combine_all_results(individual_report_results_save_path)
 
     bmi_data_location = "data/Loop BMI Data.csv"
     sh_data_location = "data/Loop SH Review.csv"
@@ -200,10 +216,13 @@ if __name__ == "__main__":
     all_results = add_bmi_data_to_results(all_results, bmi_data_location)
     all_results = add_sh_event_data_to_results(all_results, sh_data_location)
     all_results = add_dka_event_data_to_results(all_results, dka_data_location)
-    all_results.sort_values(by='loop_id', inplace=True)
+    all_results.sort_values(by="loop_id", inplace=True)
 
     today_timestamp = datetime.datetime.now().strftime("%Y-%m-%d")
-    all_results.to_csv("data/processed/PHI-issue-reports-with-surrounding-2week-data-summary-stats-{}.csv".format(today_timestamp), index=False)
+    all_results.to_csv(
+        "data/processed/PHI-issue-reports-with-surrounding-2week-data-summary-stats-{}.csv".format(today_timestamp),
+        index=False,
+    )
 
     end_time = time.time()
     elapsed_minutes = round((end_time - start_time) / 60, 4)
