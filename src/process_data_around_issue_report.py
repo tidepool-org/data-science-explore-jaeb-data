@@ -906,9 +906,24 @@ def process_carb_data(single_report, buffered_sample_data, daily_5min_ts):
             carb_entries_before_deduplication - carb_entries_after_deduplication
         )
 
+        carb_entries = pd.DataFrame(carb_data.groupby("rounded_local_time")["carbs"].sum()).reset_index()
+
+        # Merge carb absorption data if it exists
+        carb_absorption_col = "payload.com.loudnate.CarbKit.HKMetadataKey.AbsorptionTimeMinutes"
+
+        if carb_absorption_col in carb_data.columns:
+            carb_entries = pd.merge(
+                carb_entries,
+                carb_data[["rounded_local_time", carb_absorption_col]],
+                how="left",
+                on="rounded_local_time",
+            )
+
+            carb_entries.rename(columns={carb_absorption_col:'carb_absorption_minutes'}, inplace=True)
+        else:
+            carb_entries["carb_absorption_minutes"] = np.nan
+
         # Merge carbs within 5-min together
-        carb_data = pd.DataFrame(carb_data.groupby("rounded_local_time")["carbs"].sum()).reset_index()
-        carb_entries = carb_data[["rounded_local_time", "carbs"]]
         daily_5min_ts = pd.merge(daily_5min_ts, carb_entries, how="left", on="rounded_local_time")
     else:
         single_report["carb_entries_deduplicated"] = 0
