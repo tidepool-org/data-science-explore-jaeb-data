@@ -1,0 +1,76 @@
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy
+import utils
+from pathlib import Path
+from scipy.optimize import curve_fit
+
+base_path = Path(__file__).parent
+data_path = (base_path / "../data/PHI-issue-reports-with-surrounding-2week-data-summary-stats-2020-07-23.csv").resolve()
+df = pd.read_csv(data_path)
+
+df = df.dropna(subset=["basal_rate_schedule"])
+df = df[
+    (df.ageAtBaseline >= 18) 
+    & (df.bmi > 18.5) 
+    & (df.bmi < 25)
+    & (df.percent_cgm_available >= 90)
+    & (df.percent_70_180 >= 70)
+    & (df.percent_below_54 < 1)
+    & (df.percent_below_40 == 0)
+    & (df.days_with_carbs >= 14)
+    & (df.days_with_insulin >= 14)
+    & (df.days_with_basals >= 14)
+]
+print(df.count)
+
+# % Basals
+'''
+tdd: insulin_total_daily_geomean
+carbs: carbs_total_daily_geomean
+basal: basal_total_daily_geomean
+'''
+labels = ["TDD", "Carbs", "Basal Rate"]
+# utils.three_dimension_plot(
+#     df["insulin_total_daily_geomean"], 
+#     df["carbs_total_daily_geomean"],
+#     df["basal_total_daily_geomean"],
+#     labels=labels
+# )
+
+utils.two_dimension_plot(
+    df["basal_total_daily_geomean"],
+    df["carbs_total_daily_geomean"],
+    labels=["Basal", "Carbs"]
+)
+
+df["carb_adj_basal"] = df["basal_total_daily_geomean"] / df["carbs_total_daily_geomean"]
+df["bmi_adj_basal"] = df["basal_total_daily_geomean"] / df["bmi"]
+df["bmi_and_carb_adj_basal"] = df["carb_adj_basal"] / df["bmi"]
+
+# utils.two_dimension_plot(
+#     df["basal_total_daily_geomean"],
+#     df["bmi_adj_basal"],
+#     labels=["Basal", "BMI-Adjusted Basal"]
+# )
+# utils.two_dimension_plot(
+#     df["carbs_total_daily_geomean"],
+#     df["bmi_adj_basal"],
+#     labels=["Carbs", "BMI-Adjusted Basal"]
+# )
+
+
+# Graph for residuals
+utils.two_dimension_plot(
+    df["ageAtBaseline"],
+    df["bmi_adj_basal"],
+    labels=["Age", "BMI-Adjusted Basal"]
+)
+
+
+
+# plt.scatter(df["ageAtBaseline"], df["bmi_and_carb_adj_basal"])
+# plt.plot(df["ageAtBaseline"], exponential(df["ageAtBaseline"], *coeff), linestyle='--', linewidth=2, color='black')
+# plt.show()
