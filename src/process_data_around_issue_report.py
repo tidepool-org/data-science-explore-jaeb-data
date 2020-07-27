@@ -477,7 +477,16 @@ def process_basal_rate_schedule(basal_rate_schedule_string):
     basal_rate_median = basal_rate_24hr_schedule["sbr"].median()
     basal_rate_geomean = np.exp(np.log(basal_rate_24hr_schedule["sbr"]).mean())
 
-    return basal_rate_schedule_count, basal_rate_median, basal_rate_geomean, basal_rate_24hr_schedule
+    hourly_divisor = len(basal_rate_24hr_schedule["sbr"]) / 24
+    scheduled_basal_total_daily_insulin_expected = basal_rate_24hr_schedule["sbr"].sum() / hourly_divisor
+
+    return (
+        basal_rate_schedule_count,
+        basal_rate_median,
+        basal_rate_geomean,
+        basal_rate_24hr_schedule,
+        scheduled_basal_total_daily_insulin_expected,
+    )
 
 
 def process_correction_range_schedule(correction_range_schedule_string):
@@ -573,6 +582,7 @@ def process_schedules(single_report):
             basal_rate_median,
             basal_rate_geomean,
             basal_rate_24hr_schedule,
+            scheduled_basal_total_daily_insulin_expected,
         ) = process_basal_rate_schedule(basal_rate_schedule_string)
 
         single_report["scheduled_basal_rate_schedule_count"] = basal_rate_schedule_count
@@ -581,6 +591,7 @@ def process_schedules(single_report):
         single_report["scheduled_basal_to_max_basal_ratio"] = (
             single_report["maximum_basal_rate"] / single_report["scheduled_basal_rate_median"]
         )
+        single_report["scheduled_basal_total_daily_insulin_expected"] = scheduled_basal_total_daily_insulin_expected
 
     isf_schedule_string = single_report["insulin_sensitivity_factor_schedule"]
     isf_24hr_schedule = pd.DataFrame()
@@ -912,7 +923,7 @@ def process_carb_data(single_report, buffered_sample_data, daily_5min_ts):
         carb_absorption_col = "payload.com.loudnate.CarbKit.HKMetadataKey.AbsorptionTimeMinutes"
 
         if carb_absorption_col in carb_data.columns:
-            carb_data.drop_duplicates("rounded_local_time", keep='last', inplace=True)
+            carb_data.drop_duplicates("rounded_local_time", keep="last", inplace=True)
 
             carb_entries = pd.merge(
                 carb_entries,
@@ -1092,9 +1103,22 @@ def combine_all_data_into_timeseries(
 
     # Rename columns
     combined_5min_ts.rename(columns={"mg_dL": "cgm", "rate": "set_basal_rate", "normal": "bolus"}, inplace=True)
-    drop_cols = ["date", "day_interval_5min", "correction_range", "bg_target_midpoint", "bg_target_span"]
+    drop_cols = ["date", "day_interval_5min", "correction_range"]
     drop_cols = set(combined_5min_ts.columns) & set(drop_cols)
     combined_5min_ts.drop(columns=drop_cols, inplace=True)
+
+    return combined_5min_ts
+
+
+def add_additional_settings_to_ts(combined_5min_ts, single_report):
+
+    combined_5min_ts["loop_id"] = single_report["loop_id"]
+    combined_5min_ts["report_num"] = single_report["report_num"]
+    combined_5min_ts["maximum_basal_rate"] = single_report["maximum_basal_rate"]
+    combined_5min_ts["maximum_bolus"] = single_report["maximum_bolus"]
+    combined_5min_ts["suspend_threshold"] = single_report["suspend_threshold"]
+    retrospective_correction_enabled_bool = "true" in str(single_report["retrospective_correction_enabled"]).lower()
+    combined_5min_ts["retrospective_correction_enabled"] = retrospective_correction_enabled_bool
 
     return combined_5min_ts
 
@@ -1168,6 +1192,8 @@ def main(loop_id, issue_reports, dataset_path, individual_report_results_save_pa
                     carb_ratio_24hr_schedule,
                     correction_range_24hr_schedule,
                 )
+
+                combined_5min_ts = add_additional_settings_to_ts(combined_5min_ts, single_report)
 
                 data_filename = "{}-report-{}-time-series.csv".format(loop_id, report_idx)
                 data_save_path = os.path.join(individual_data_samples_save_path, data_filename)
