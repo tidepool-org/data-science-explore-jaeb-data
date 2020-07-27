@@ -31,6 +31,7 @@ from multiprocessing import Pool, cpu_count
 def data_around_issue_report_subprocessor(
     loop_id_index, unique_loop_ids, dataset_list, individual_report_results_save_path, individual_data_samples_save_path
 ):
+
     if loop_id_index % 10 == 0:
         print("Starting: " + str(loop_id_index))
 
@@ -120,7 +121,14 @@ def add_bmi_data_to_results(all_results, bmi_data_location):
 def add_sh_event_data_to_results(all_results, sh_data_location):
     sh_data = pd.read_csv(sh_data_location)
     sh_data.rename(columns={"Participant ID": "loop_id"}, inplace=True)
-    sh_events_with_dates = sh_data[sh_data["reported  SH date"] != "Participant doesn't know"]
+
+    # Replace unknown event dates with survey date - 1 day
+    missing_dates = sh_data["reported  SH date"] == "Participant doesn't know"
+    sh_data.loc[missing_dates, "reported SH date"] = pd.to_datetime(
+        sh_data.loc[missing_dates, "survey date"]
+    ) - datetime.timedelta(days=1)
+
+    sh_events_with_dates = sh_data[sh_data["reported  SH date"].notnull()]
     confirmed_sh_events = sh_events_with_dates[
         sh_events_with_dates["confirmed SH event"].str.lower() == "yes"
     ].reset_index(drop=True)
@@ -145,7 +153,14 @@ def add_sh_event_data_to_results(all_results, sh_data_location):
 def add_dka_event_data_to_results(all_results, dka_data_location):
     dka_data = pd.read_csv(dka_data_location)
     dka_data.rename(columns={"ID": "loop_id"}, inplace=True)
-    dka_events_with_dates = dka_data[dka_data["reported DKA date"] != "Participant doesn't know"]
+    # Replace unknown event dates with survey date - 1 day
+    missing_dates = dka_data["reported DKA date"] == "Participant doesn't know"
+    dka_data.loc[missing_dates, "reported SH date"] = pd.to_datetime(
+        dka_data.loc[missing_dates, "survey date"]
+    ) - datetime.timedelta(days=1)
+
+    dka_events_with_dates = dka_data[dka_data["reported DKA date"].notnull()]
+
     confirmed_dka_events = dka_events_with_dates[
         dka_events_with_dates["confirmed DKA event"].str.lower() == "yes"
     ].reset_index(drop=True)
@@ -174,7 +189,9 @@ if __name__ == "__main__":
 
     dataset_location = "data/processed/PHI-compressed-data/"
     individual_report_results_save_path = "data/processed/individual-report-results-{}/".format(today_timestamp)
-    individual_data_samples_save_path = "data/processed/time-series-data-around-issue-reports-{}/".format(today_timestamp)
+    individual_data_samples_save_path = "data/processed/time-series-data-around-issue-reports-{}/".format(
+        today_timestamp
+    )
     save_dirs = [individual_report_results_save_path, individual_data_samples_save_path]
 
     for dir in save_dirs:
