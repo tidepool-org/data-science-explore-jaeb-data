@@ -912,6 +912,8 @@ def process_carb_data(single_report, buffered_sample_data, daily_5min_ts):
         carb_absorption_col = "payload.com.loudnate.CarbKit.HKMetadataKey.AbsorptionTimeMinutes"
 
         if carb_absorption_col in carb_data.columns:
+            carb_data.drop_duplicates("rounded_local_time", keep='last', inplace=True)
+
             carb_entries = pd.merge(
                 carb_entries,
                 carb_data[["rounded_local_time", carb_absorption_col]],
@@ -919,7 +921,7 @@ def process_carb_data(single_report, buffered_sample_data, daily_5min_ts):
                 on="rounded_local_time",
             )
 
-            carb_entries.rename(columns={carb_absorption_col:'carb_absorption_minutes'}, inplace=True)
+            carb_entries.rename(columns={carb_absorption_col: "carb_absorption_minutes"}, inplace=True)
         else:
             carb_entries["carb_absorption_minutes"] = np.nan
 
