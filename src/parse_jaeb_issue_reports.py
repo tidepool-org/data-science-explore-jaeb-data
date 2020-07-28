@@ -229,12 +229,15 @@ if __name__ == "__main__":
         all_loop_settings_df.to_csv(
             "PHI-parsed-loop-settings-from-issue-reports-{}.csv".format(today_date_str), index=False
         )
+
+        end_time = time.time()
+        elapsed_minutes = round((end_time - start_time) / 60, 4)
+        elapsed_time_message = (
+                str(len(all_loop_settings_df)) + "loop reports processed in: " + str(elapsed_minutes) + " minutes\n"
+        )
+        print(elapsed_time_message)
+        
     else:
         print("{} - Path does not exist.".format(issue_reports_location))
 
-    end_time = time.time()
-    elapsed_minutes = round((end_time - start_time) / 60, 4)
-    elapsed_time_message = (
-        str(len(all_loop_settings_df)) + "loop reports processed in: " + str(elapsed_minutes) + " minutes\n"
-    )
-    print(elapsed_time_message)
+
