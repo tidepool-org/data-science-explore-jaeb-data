@@ -11,19 +11,7 @@ base_path = Path(__file__).parent
 data_path = (base_path / "../data/PHI-issue-reports-with-surrounding-2week-data-summary-stats-2020-07-23.csv").resolve()
 df = pd.read_csv(data_path)
 
-df = df.dropna(subset=["basal_rate_schedule"])
-df = df[
-    (df.ageAtBaseline >= 18) 
-    & (df.bmi > 18.5) 
-    & (df.bmi < 25)
-    & (df.percent_cgm_available >= 90)
-    & (df.percent_70_180 >= 70)
-    & (df.percent_below_54 < 1)
-    & (df.percent_below_40 == 0)
-    & (df.days_with_carbs >= 14)
-    & (df.days_with_insulin >= 14)
-    & (df.days_with_basals >= 14)
-]
+df = utils.filter_data_for_equations(df)
 print(df.count)
 
 # % Basals
@@ -39,12 +27,6 @@ labels = ["TDD", "Carbs", "Basal Rate"]
 #     df["basal_total_daily_geomean"],
 #     labels=labels
 # )
-
-utils.two_dimension_plot(
-    df["basal_total_daily_geomean"],
-    df["carbs_total_daily_geomean"],
-    labels=["Basal", "Carbs"]
-)
 
 df["carb_adj_basal"] = df["basal_total_daily_geomean"] / df["carbs_total_daily_geomean"]
 df["bmi_adj_basal"] = df["basal_total_daily_geomean"] / df["bmi"]

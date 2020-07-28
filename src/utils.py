@@ -2,6 +2,22 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
+
+def filter_data_for_equations(df):
+    df = df.dropna(subset=["basal_rate_schedule"])
+    return df[
+        (df.ageAtBaseline >= 18) 
+        & (df.bmi > 18.5) 
+        & (df.bmi < 25)
+        & (df.percent_cgm_available >= 90)
+        & (df.percent_70_180 >= 70)
+        & (df.percent_below_54 < 1)
+        & (df.percent_below_40 == 0)
+        & (df.days_with_carbs >= 14)
+        & (df.days_with_insulin >= 14)
+        & (df.days_with_basals >= 14)
+    ]
+
 def three_dimension_plot(x, y, z, labels=["", "", ""], title=""):
     """
     Function to plot a 3D graph of data, with optional labels & a title
