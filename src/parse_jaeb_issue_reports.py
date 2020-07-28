@@ -21,7 +21,10 @@ import os
 import pandas as pd
 import numpy as np
 import datetime
+import time
+
 # %%
+start_time = time.time()
 issue_reports_location = "PHI-Loop Issue Report files for Tidepool - 2020-05-29"
 paths = []
 files = []
@@ -219,3 +222,7 @@ all_loop_settings_df = add_dka_event_data_to_results(all_loop_settings_df, dka_d
 
 
 all_loop_settings_df.to_csv("PHI-parsed-loop-settings-from-issue-reports-{}.csv".format(today_date_str), index=False)
+end_time = time.time()
+elapsed_minutes = round((end_time - start_time) / 60, 4)
+elapsed_time_message = str(len(all_loop_settings_df)) + "loop reports processed in: " + str(elapsed_minutes) + " minutes\n"
+print(elapsed_time_message)
