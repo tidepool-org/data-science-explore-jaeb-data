@@ -25,9 +25,9 @@ import traceback
 import argparse
 
 from tidepool_data_science_models.models.simple_metabolism_model import SimpleMetabolismModel
-from src.rolling_statistics import get_hourly_rolling_stats
-import src.risk_metrics as risk_metrics
-import src.schedule_parser as schedule_parser
+from rolling_statistics import get_hourly_rolling_stats
+import risk_metrics as risk_metrics
+import schedule_parser as schedule_parser
 
 # %% Constants
 GLUCOSE_CONVERSION_FACTOR = 18.01559

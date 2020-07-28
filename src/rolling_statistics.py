@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-import src.risk_metrics as risk_metrics
+import risk_metrics as risk_metrics
 
 # %%
 
