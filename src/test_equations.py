@@ -12,7 +12,7 @@ data_path = (base_path / "../data/PHI-issue-reports-with-surrounding-2week-data-
 df = pd.read_csv(data_path)
 
 def basal_eq(tdd, carbs, bmi):
-    return 0.06365*(tdd*bmi) ** 0.8734 ** math.exp(-.001004*carbs)#tdd * math.exp(-0.004 * carbs) #0.641 * tdd * (1.086 ** (-0.001709 * carbs))
+    return 0.641 * tdd ** 1.086 * math.exp(-0.001709 * carbs)
 
 def isf_eq(tdd, bmi, age):
     return 40080/(tdd * bmi)
