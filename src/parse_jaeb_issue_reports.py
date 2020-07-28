@@ -73,91 +73,12 @@ def main(issue_reports_location):
     return issue_report_df_list, passed, failed
 
 
-def find_closest_issue_report_to_event(loop_id, all_loop_settings_df, event_date):
-    reports_from_one_id = all_loop_settings_df[all_loop_settings_df["loop_id"] == loop_id].copy()
-    reports_from_one_id["report_timestamp"] = pd.to_datetime(reports_from_one_id["report_timestamp"], utc=True)
-    event_date = pd.to_datetime(event_date, utc=True)
-    reports_from_one_id["report_days_away_from_event"] = abs(
-        reports_from_one_id["report_timestamp"] - event_date
-    ).dt.days
-    closest_index = reports_from_one_id["report_days_away_from_event"].idxmin()
-    report_days_away_from_event = reports_from_one_id.loc[closest_index, "report_days_away_from_event"]
-
-    return closest_index, report_days_away_from_event
-
-
 def add_bmi_data_to_results(all_loop_settings_df, bmi_data_location):
     bmi_data = pd.read_csv(bmi_data_location)
     bmi_data.rename(columns={"PtID": "loop_id"}, inplace=True)
-
     all_loop_settings_df = all_loop_settings_df.merge(bmi_data, on="loop_id", how="left")
 
     return all_loop_settings_df
-
-
-def add_sh_event_data_to_results(all_loop_settings_df, sh_data_location):
-    sh_data = pd.read_csv(sh_data_location)
-    sh_data.rename(columns={"Participant ID": "loop_id"}, inplace=True)
-
-    # Replace unknown event dates with survey date - 1 day
-    missing_dates = sh_data["reported  SH date"] == "Participant doesn't know"
-    sh_data.loc[missing_dates, "reported SH date"] = pd.to_datetime(
-        sh_data.loc[missing_dates, "survey date"]
-    ) - datetime.timedelta(days=1)
-
-    sh_events_with_dates = sh_data[sh_data["reported  SH date"].notnull()]
-    confirmed_sh_events = sh_events_with_dates[
-        sh_events_with_dates["confirmed SH event"].str.lower() == "yes"
-    ].reset_index(drop=True)
-
-    all_loop_settings_df["confirmed_sh_event"] = 0
-    all_loop_settings_df["report_days_away_from_sh_event"] = np.nan
-
-    for sh_event_idx in range(len(confirmed_sh_events)):
-        sh_event = confirmed_sh_events.loc[sh_event_idx]
-        reported_sh_date = sh_event["reported  SH date"]
-        loop_id = sh_event["loop_id"]
-        if loop_id in all_loop_settings_df["loop_id"].values:
-            closest_index, report_days_away_from_event = find_closest_issue_report_to_event(
-                loop_id, all_loop_settings_df, reported_sh_date
-            )
-            all_loop_settings_df.loc[closest_index, "confirmed_sh_event"] = 1
-            all_loop_settings_df.loc[closest_index, "report_days_away_from_sh_event"] = report_days_away_from_event
-
-    return all_loop_settings_df
-
-
-def add_dka_event_data_to_results(all_loop_settings_df, dka_data_location):
-    dka_data = pd.read_csv(dka_data_location)
-    dka_data.rename(columns={"ID": "loop_id"}, inplace=True)
-    # Replace unknown event dates with survey date - 1 day
-    missing_dates = dka_data["reported DKA date"] == "Participant doesn't know"
-    dka_data.loc[missing_dates, "reported SH date"] = pd.to_datetime(
-        dka_data.loc[missing_dates, "survey date"]
-    ) - datetime.timedelta(days=1)
-
-    dka_events_with_dates = dka_data[dka_data["reported DKA date"].notnull()]
-
-    confirmed_dka_events = dka_events_with_dates[
-        dka_events_with_dates["confirmed DKA event"].str.lower() == "yes"
-    ].reset_index(drop=True)
-
-    all_loop_settings_df["confirmed_dka_event"] = 0
-    all_loop_settings_df["report_days_away_from_dka_event"] = np.nan
-
-    for dka_event_idx in range(len(confirmed_dka_events)):
-        dka_event = confirmed_dka_events.loc[dka_event_idx]
-        reported_dka_date = dka_event["reported DKA date"]
-        loop_id = dka_event["loop_id"]
-        if loop_id in all_loop_settings_df["loop_id"].values:
-            closest_index, report_days_away_from_event = find_closest_issue_report_to_event(
-                loop_id, all_loop_settings_df, reported_dka_date
-            )
-            all_loop_settings_df.loc[closest_index, "confirmed_dka_event"] = 1
-            all_loop_settings_df.loc[closest_index, "report_days_away_from_dka_event"] = report_days_away_from_event
-
-    return all_loop_settings_df
-
 
 # %%
 
@@ -217,14 +138,10 @@ if __name__ == "__main__":
         ]
 
         all_loop_settings_df = all_issue_reports[settings_cols]
+        all_loop_settings_df["report_timestamp"] = pd.to_datetime(all_loop_settings_df["report_timestamp"])
 
         bmi_data_location = "data/Loop BMI Data.csv"
-        sh_data_location = "data/Loop SH Review.csv"
-        dka_data_location = "data/Loop DKA Review.csv"
-
         all_loop_settings_df = add_bmi_data_to_results(all_loop_settings_df, bmi_data_location)
-        all_loop_settings_df = add_sh_event_data_to_results(all_loop_settings_df, sh_data_location)
-        all_loop_settings_df = add_dka_event_data_to_results(all_loop_settings_df, dka_data_location)
 
         all_loop_settings_df.to_csv(
             "PHI-parsed-loop-settings-from-issue-reports-{}.csv".format(today_date_str), index=False
@@ -236,7 +153,7 @@ if __name__ == "__main__":
                 str(len(all_loop_settings_df)) + "loop reports processed in: " + str(elapsed_minutes) + " minutes\n"
         )
         print(elapsed_time_message)
-        
+
     else:
         print("{} - Path does not exist.".format(issue_reports_location))
 
