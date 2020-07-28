@@ -144,10 +144,13 @@ def get_hourly_rolling_stats(combined_5min_ts, hourly_values):
     temp_rolling_df["high_risk_power"] = risk_power * high_risk_bool
 
     # Prep DKA data
-    temp_rolling_df["fifty_percent_steady_state_iob_from_sbr"] = (temp_rolling_df["sbr"] * 2.111517) / 2
-    temp_rolling_df["iob_lt50perc_steady_state_iob"] = (
-        temp_rolling_df["iob"] < temp_rolling_df["fifty_percent_steady_state_iob_from_sbr"]
-    )
+    if "sbr" in temp_rolling_df.columns:
+        temp_rolling_df["fifty_percent_steady_state_iob_from_sbr"] = (temp_rolling_df["sbr"] * 2.111517) / 2
+        temp_rolling_df["iob_lt50perc_steady_state_iob"] = (
+            temp_rolling_df["iob"] < temp_rolling_df["fifty_percent_steady_state_iob_from_sbr"]
+        )
+    else:
+        temp_rolling_df["iob_lt50perc_steady_state_iob"] = np.nan
 
     # Set minimum percentage of points required to calculate rolling statistic
     percent_points_required = 0.7
