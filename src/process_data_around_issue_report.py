@@ -716,10 +716,11 @@ def add_carb_and_insulin_weighted_settings(single_report, combined_5min_ts):
         if total_carbs > 0:
             single_report["carb_weighted_carb_ratio"] = sum_weighted_cr / total_carbs
 
-    sum_weighted_isf = (combined_5min_ts["total_insulin_delivered"] * combined_5min_ts["isf"]).sum()
-    total_insulin = combined_5min_ts["total_insulin_delivered"].sum()
-    if total_insulin > 0:
-        single_report["insulin_weighted_isf"] = sum_weighted_isf / total_insulin
+    if ("isf" in combined_5min_ts.columns) and ("total_insulin_delivered" in combined_5min_ts.columns):
+        sum_weighted_isf = (combined_5min_ts["total_insulin_delivered"] * combined_5min_ts["isf"]).sum()
+        total_insulin = combined_5min_ts["total_insulin_delivered"].sum()
+        if total_insulin > 0:
+            single_report["insulin_weighted_isf"] = sum_weighted_isf / total_insulin
 
     return single_report
 
