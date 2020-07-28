@@ -25,6 +25,9 @@ import traceback
 import argparse
 
 from tidepool_data_science_models.models.simple_metabolism_model import SimpleMetabolismModel
+from src.rolling_statistics import get_hourly_rolling_stats
+import src.risk_metrics as risk_metrics
+import src.schedule_parser as schedule_parser
 
 # %% Constants
 GLUCOSE_CONVERSION_FACTOR = 18.01559
@@ -56,9 +59,16 @@ def get_args():
     )
 
     parser.add_argument(
-        "-individual_data_samples_save_path",
-        dest="individual_data_samples_save_path",
-        default="data/processed/individual_14day_data_samples/",
+        "-time_series_data_save_path",
+        dest="time_series_data_save_path",
+        default="data/processed/time-series-data-around-issue-reports/",
+        help="The folder path of where to save 14day data samples",
+    )
+
+    parser.add_argument(
+        "-time_series_with_stats_data_save_path",
+        dest="time_series_with_stats_data_save_path",
+        default="data/processed/time-series-data-with-stats-around-issue-reports/",
         help="The folder path of where to save 14day data samples",
     )
 
@@ -74,82 +84,6 @@ def get_args():
 
 
 # %% Functions
-
-
-def get_bgri(bg_df):
-    # Calculate LBGI and HBGI using equation from
-    # Clarke, W., & Kovatchev, B. (2009)
-    bgs = bg_df.copy()
-    bgs[bgs < 1] = 1  # this is added to take care of edge case BG <= 0
-    transformed_bg = 1.509 * ((np.log(bgs) ** 1.084) - 5.381)
-    risk_power = 10 * (transformed_bg) ** 2
-    low_risk_bool = transformed_bg < 0
-    high_risk_bool = transformed_bg > 0
-    rlBG = risk_power * low_risk_bool
-    rhBG = risk_power * high_risk_bool
-    LBGI = np.mean(rlBG)
-    HBGI = np.mean(rhBG)
-    BGRI = LBGI + HBGI
-
-    return LBGI, HBGI, BGRI
-
-
-def lbgi_risk_score(lbgi):
-    if lbgi > 10:
-        risk = 4
-    elif lbgi > 5:
-        risk = 3
-    elif lbgi > 2.5:
-        risk = 2
-    elif lbgi > 0:
-        risk = 1
-    else:
-        risk = 0
-    return risk
-
-
-def hbgi_risk_score(hbgi):
-    if hbgi > 18:
-        risk = 4
-    elif hbgi > 9:
-        risk = 3
-    elif hbgi > 4.5:
-        risk = 2
-    elif hbgi > 0:
-        risk = 1
-    else:
-        risk = 0
-    return risk
-
-
-def get_steady_state_iob_from_sbr(sbr):
-    return sbr * 2.111517
-
-
-def get_dka_risk_hours(iob_array, sbr):
-    steady_state_iob = get_steady_state_iob_from_sbr(sbr)
-
-    fifty_percent_steady_state_iob = steady_state_iob / 2
-
-    indices_with_less_50percent_sbr_iob = iob_array < fifty_percent_steady_state_iob
-
-    hours_with_less_50percent_sbr_iob = np.sum(indices_with_less_50percent_sbr_iob) * 5 / 60
-
-    return hours_with_less_50percent_sbr_iob
-
-
-def dka_risk_score(hours_with_less_50percent_sbr_iob):
-    if hours_with_less_50percent_sbr_iob >= 21:
-        risk = 4
-    elif hours_with_less_50percent_sbr_iob >= 14:
-        risk = 3
-    elif hours_with_less_50percent_sbr_iob >= 8:
-        risk = 2
-    elif hours_with_less_50percent_sbr_iob >= 2:
-        risk = 1
-    else:
-        risk = 0
-    return risk
 
 
 def remove_overlapping_issue_reports(reports_from_one_id):
@@ -266,389 +200,6 @@ def get_timezone_from_issue_report(single_report, data):
     return local_timezone
 
 
-def build_schedule_24hr_array(schedule_dict, schedule_name):
-    """
-    Loop settings are stored in a schedule profile that describes the value and time they change in a 24-hour period.
-    In order to calculate the time-weighted metrics of each setting, a continuous high frequency 24-hour time series
-    is needed.
-
-    Parameters
-    ----------
-    schedule_dict : dict
-        The dictionary of settings, containing a start time from local time midnight in seconds and the setting's value
-    schedule_name : str
-
-    Returns
-    -------
-    schedule_24hr_array : pandas.DataFrame
-        Contains a 5-minute interval time series of settings from 12am (interval 0) to 11:55pm (interval 1435)
-
-    """
-
-    freq_5min_array = np.arange(0, 1440, 5)
-    schedule_24hr_array = pd.DataFrame(index=freq_5min_array, columns=[schedule_name])
-
-    for schedule in schedule_dict:
-        startTime = schedule["startTime"]
-        if isinstance(startTime, str):
-            startTime = float(startTime)
-        if (startTime < 0) and (len(schedule_dict) == 1):
-            startTime = 0
-        startTime_minutes = int(startTime / 60)
-
-        if startTime_minutes % 5 != 0:
-            raise Exception("Invalid Schedule Start Time: {}".format(str(startTime_minutes)))
-        else:
-            schedule_24hr_array.loc[startTime_minutes, schedule_name] = schedule["value"]
-
-    schedule_24hr_array[schedule_name].ffill(inplace=True)
-
-    if pd.isnull(schedule_24hr_array.loc[0])[schedule_name]:
-        # No schedules at midnight, carry forward value from end of 24hr period
-        schedule_24hr_array.loc[0, schedule_name] = schedule_24hr_array.loc[1435, schedule_name]
-        schedule_24hr_array[schedule_name].ffill(inplace=True)
-
-    schedule_24hr_array["day_interval_5min"] = freq_5min_array
-
-    return schedule_24hr_array
-
-
-def convert_setting_to_mg_dl(value, units):
-    """
-    Converts a setting from mmol/L to mg/dL
-
-    Parameters
-    ----------
-    value : int or float
-        The value to be converted
-    units : str
-        The units of the value
-
-    Returns
-    -------
-    value : float
-        The value in mg/dL
-
-    """
-    if units == "mmol":
-        value = round(value * GLUCOSE_CONVERSION_FACTOR, ROUND_PRECISION)
-
-    return value
-
-
-def check_settings_units(single_report):
-    """
-    Issue report settings should all be in mg/dL, but some reports have a mixture of both mg/dL and mmol/L.
-
-    Parameters
-    ----------
-    single_report : pandas.Series
-        The issue report's series of settings and results
-
-    Returns
-    -------
-    single_report : pandas.Series
-        An issue report with proper mg/dL settings values
-
-    """
-    all_fields = []
-    contains_incorrect_settings_value = False
-
-    # Suspend Threshold
-    suspend_units = str(single_report["suspend_threshold_unit"])
-    single_report["suspend_threshold"] = convert_setting_to_mg_dl(single_report["suspend_threshold"], suspend_units)
-    all_fields += ["suspend_threshold"]
-    if (single_report["suspend_threshold"] < 0) | (single_report["suspend_threshold"] > 400):
-        contains_incorrect_settings_value = True
-
-    # ISF
-    isf_fields = ["isf_median", "isf_geomean"]
-    all_fields += isf_fields
-    isf_units = str(single_report["insulin_sensitivity_factor_unit"])
-
-    for isf_field in isf_fields:
-        if isf_field in single_report:
-            single_report[isf_field] = convert_setting_to_mg_dl(single_report[isf_field], isf_units)
-            if single_report[isf_field] < 0:
-                contains_incorrect_settings_value = True
-
-    # Target Ranges
-    target_range_fields = [
-        "override_range_workout_minimum",
-        "override_range_workout_maximum",
-        "override_range_premeal_minimum",
-        "override_range_premeal_maximum",
-        "bg_target_lower_median",
-        "bg_target_lower_geomean",
-        "bg_target_midpoint_median",
-        "bg_target_midpoint_geomean",
-        "bg_target_upper_median",
-        "bg_target_upper_geomean",
-        "bg_target_span_median",
-    ]
-    all_fields += target_range_fields
-
-    for field in target_range_fields:
-        if ("mmol" in suspend_units) | ("mmol" in isf_units):
-            target_units = "mmol"
-        else:
-            target_units = "mg/dL"
-
-        if field in single_report:
-            single_report[field] = convert_setting_to_mg_dl(single_report[field], target_units)
-
-    single_report["contains_incorrect_settings_value"] = contains_incorrect_settings_value
-
-    return single_report
-
-
-def process_carb_ratio_schedule(carb_ratio_schedule_string):
-    """
-    Converting the carb ratio schedule string into an actual 24 hour schedule and summary information
-
-    Parameters
-    ----------
-    carb_ratio_schedule_string : str
-        A string representation of the schedule dictionary as stored in the issue report
-
-    Returns
-    -------
-    carb_ratio_schedule_count : int
-    carb_ratio_median : float
-    carb_ratio_geomean : float
-    carb_ratio_24hr_schedule : pandas.DataFrame
-
-    """
-    schedule_dict = ast.literal_eval(carb_ratio_schedule_string)
-    carb_ratio_schedule_count = len(schedule_dict)
-    carb_ratio_24hr_schedule = build_schedule_24hr_array(schedule_dict, "carb_ratio")
-    carb_ratio_median = carb_ratio_24hr_schedule["carb_ratio"].median()
-    carb_ratio_geomean = np.exp(np.log(carb_ratio_24hr_schedule["carb_ratio"]).mean())
-
-    return carb_ratio_schedule_count, carb_ratio_median, carb_ratio_geomean, carb_ratio_24hr_schedule
-
-
-def process_isf_schedule(isf_schedule_string):
-    """
-    Converting the insulin sensitivity factor (isf) schedule string into an actual 24 hour schedule with summary info
-
-    Parameters
-    ----------
-    isf_schedule_string : str
-        A string representation of the schedule dictionary as stored in the issue report
-
-    Returns
-    -------
-    isf_schedule_count : int
-    isf_median : float
-    isf_geomean : float
-    isf_24hr_schedule : pandas.DataFrame
-
-    """
-    schedule_dict = ast.literal_eval(isf_schedule_string)
-    isf_schedule_count = len(schedule_dict)
-    isf_24hr_schedule = build_schedule_24hr_array(schedule_dict, "isf")
-    isf_median = isf_24hr_schedule["isf"].median()
-    isf_geomean = np.exp(np.log(isf_24hr_schedule["isf"]).mean())
-
-    return isf_schedule_count, isf_median, isf_geomean, isf_24hr_schedule
-
-
-def process_basal_rate_schedule(basal_rate_schedule_string):
-    """
-    Converting the scheduled basal rate dictionary string into an actual 24 hour schedule with summary info
-
-    Parameters
-    ----------
-    basal_rate_schedule_string : str
-        A string representation of the schedule dictionary as stored in the issue report
-
-    Returns
-    -------
-    basal_rate_schedule_count : int
-    basal_rate_median : float
-    basal_rate_geomean : float
-    basal_rate_24hr_schedule : pandas.DataFrame
-
-    """
-    basal_rate_schedule_dict = ast.literal_eval(basal_rate_schedule_string)
-    basal_rate_schedule_count = len(basal_rate_schedule_dict)
-    basal_rate_24hr_schedule = build_schedule_24hr_array(basal_rate_schedule_dict, "sbr")
-    basal_rate_median = basal_rate_24hr_schedule["sbr"].median()
-    basal_rate_geomean = np.exp(np.log(basal_rate_24hr_schedule["sbr"]).mean())
-
-    hourly_divisor = len(basal_rate_24hr_schedule["sbr"]) / 24
-    scheduled_basal_total_daily_insulin_expected = basal_rate_24hr_schedule["sbr"].sum() / hourly_divisor
-
-    return (
-        basal_rate_schedule_count,
-        basal_rate_median,
-        basal_rate_geomean,
-        basal_rate_24hr_schedule,
-        scheduled_basal_total_daily_insulin_expected,
-    )
-
-
-def process_correction_range_schedule(correction_range_schedule_string):
-    """
-    Converting the correction_range schedule dictionary string into an actual 24 hour schedule with summary info.
-    The correction ranges are also in an array containing a the lower and upper target thresholds.
-
-    Parameters
-    ----------
-    correction_range_schedule_string : str
-        A string representation of the schedule dictionary as stored in the issue report
-
-    Returns
-    -------
-    correction_range_schedule_count : int
-    bg_target_lower_median : float
-    bg_target_lower_geomean : float
-    bg_target_midpoint_median : float
-    bg_target_midpoint_geomean : float
-    bg_target_upper_median : float
-    bg_target_upper_geomean : float
-    bg_target_span_median : float
-    correction_range_24hr_schedule : pandas.DataFrame
-
-    """
-    schedule_dict = ast.literal_eval(correction_range_schedule_string)
-    correction_range_schedule_count = len(schedule_dict)
-    correction_range_24hr_schedule = build_schedule_24hr_array(schedule_dict, "correction_range")
-
-    correction_range_24hr_schedule["bg_target_lower"] = correction_range_24hr_schedule["correction_range"].apply(
-        lambda x: x[0]
-    )
-    correction_range_24hr_schedule["bg_target_upper"] = correction_range_24hr_schedule["correction_range"].apply(
-        lambda x: x[1]
-    )
-    correction_range_24hr_schedule["bg_target_midpoint"] = correction_range_24hr_schedule["correction_range"].apply(
-        lambda x: np.mean(x)
-    )
-    correction_range_24hr_schedule["bg_target_span"] = (
-        correction_range_24hr_schedule["bg_target_upper"] - correction_range_24hr_schedule["bg_target_lower"]
-    )
-
-    bg_target_lower_median = correction_range_24hr_schedule["bg_target_lower"].median()
-    bg_target_lower_geomean = np.exp(np.log(correction_range_24hr_schedule["bg_target_lower"]).mean())
-
-    bg_target_midpoint_median = correction_range_24hr_schedule["bg_target_midpoint"].median()
-    bg_target_midpoint_geomean = np.exp(np.log(correction_range_24hr_schedule["bg_target_midpoint"]).mean())
-
-    bg_target_upper_median = correction_range_24hr_schedule["bg_target_upper"].median()
-    bg_target_upper_geomean = np.exp(np.log(correction_range_24hr_schedule["bg_target_upper"]).mean())
-
-    bg_target_span_median = correction_range_24hr_schedule["bg_target_span"].median()
-
-    return (
-        correction_range_schedule_count,
-        bg_target_lower_median,
-        bg_target_lower_geomean,
-        bg_target_midpoint_median,
-        bg_target_midpoint_geomean,
-        bg_target_upper_median,
-        bg_target_upper_geomean,
-        bg_target_span_median,
-        correction_range_24hr_schedule,
-    )
-
-
-def process_schedules(single_report):
-    """
-    The following 24-hour settings schedules need to be further parsed from the issue reports:
-        Basal Rates, Insulin Sensitivity Factor, Carb Ratio, and Correction Range
-    For each of these schedules, time-weighted statistics are calculated and the schedules are returned to be merged
-    into the rest of the cgm, insulin, and carb time series data.
-
-    Parameters
-    ----------
-    single_report : pandas.Series
-        The main issue report that contains all the schedule strings to be processed
-
-    Returns
-    -------
-    single_report : pandas.Series
-    basal_rate_24hr_schedule : pandas.DataFrame
-    isf_24hr_schedule : pandas.DataFrame
-    carb_ratio_24hr_schedule : pandas.DataFrame
-    correction_range_24hr_schedule : pandas.DataFrame
-
-    """
-    basal_rate_schedule_string = single_report["basal_rate_schedule"]
-    basal_rate_24hr_schedule = pd.DataFrame()
-    if pd.notnull(basal_rate_schedule_string):
-        (
-            basal_rate_schedule_count,
-            basal_rate_median,
-            basal_rate_geomean,
-            basal_rate_24hr_schedule,
-            scheduled_basal_total_daily_insulin_expected,
-        ) = process_basal_rate_schedule(basal_rate_schedule_string)
-
-        single_report["scheduled_basal_rate_schedule_count"] = basal_rate_schedule_count
-        single_report["scheduled_basal_rate_median"] = basal_rate_median
-        single_report["scheduled_basal_rate_geomean"] = basal_rate_geomean
-        single_report["scheduled_basal_to_max_basal_ratio"] = (
-            single_report["maximum_basal_rate"] / single_report["scheduled_basal_rate_median"]
-        )
-        single_report["scheduled_basal_total_daily_insulin_expected"] = scheduled_basal_total_daily_insulin_expected
-
-    isf_schedule_string = single_report["insulin_sensitivity_factor_schedule"]
-    isf_24hr_schedule = pd.DataFrame()
-    if pd.notnull(isf_schedule_string):
-        isf_schedule_count, isf_median, isf_geomean, isf_24hr_schedule = process_isf_schedule(isf_schedule_string)
-
-        single_report["isf_schedule_count"] = isf_schedule_count
-        single_report["isf_median"] = isf_median
-        single_report["isf_geomean"] = isf_geomean
-
-    carb_ratio_schedule_string = single_report["carb_ratio_schedule"]
-    carb_ratio_24hr_schedule = pd.DataFrame()
-    if pd.notnull(carb_ratio_schedule_string):
-        (
-            carb_ratio_schedule_count,
-            carb_ratio_median,
-            carb_ratio_geomean,
-            carb_ratio_24hr_schedule,
-        ) = process_carb_ratio_schedule(carb_ratio_schedule_string)
-
-        single_report["carb_ratio_schedule_count"] = carb_ratio_schedule_count
-        single_report["carb_ratio_median"] = carb_ratio_median
-        single_report["carb_ratio_geomean"] = carb_ratio_geomean
-
-    correction_range_schedule_string = single_report["correction_range_schedule"]
-    correction_range_24hr_schedule = pd.DataFrame()
-    if pd.notnull(correction_range_schedule_string):
-        (
-            correction_range_schedule_count,
-            bg_target_lower_median,
-            bg_target_lower_geomean,
-            bg_target_midpoint_median,
-            bg_target_midpoint_geomean,
-            bg_target_upper_median,
-            bg_target_upper_geomean,
-            bg_target_span_median,
-            correction_range_24hr_schedule,
-        ) = process_correction_range_schedule(correction_range_schedule_string)
-
-        single_report["correction_range_schedule_count"] = correction_range_schedule_count
-        single_report["bg_target_lower_median"] = bg_target_lower_median
-        single_report["bg_target_lower_geomean"] = bg_target_lower_geomean
-        single_report["bg_target_midpoint_median"] = bg_target_midpoint_median
-        single_report["bg_target_midpoint_geomean"] = bg_target_midpoint_geomean
-        single_report["bg_target_upper_median"] = bg_target_upper_median
-        single_report["bg_target_upper_geomean"] = bg_target_upper_geomean
-        single_report["bg_target_span_median"] = bg_target_span_median
-
-    return (
-        single_report,
-        basal_rate_24hr_schedule,
-        isf_24hr_schedule,
-        carb_ratio_24hr_schedule,
-        correction_range_24hr_schedule,
-    )
-
-
 def get_cgm_stats(cgm_data, single_report):
     """
 
@@ -681,9 +232,9 @@ def get_cgm_stats(cgm_data, single_report):
     percent_below_54 = round(100 * (sum(cgm_values < 54)) / cgm_count, ROUND_PRECISION)
     percent_below_40 = round(100 * (sum(cgm_values < 40)) / cgm_count, ROUND_PRECISION)
 
-    LBGI, HBGI, BGRI = get_bgri(cgm_values)
-    LBGI_RS = lbgi_risk_score(LBGI)
-    HBGI_RS = hbgi_risk_score(HBGI)
+    LBGI, HBGI, BGRI = risk_metrics.get_bgri(cgm_values)
+    LBGI_RS = risk_metrics.lbgi_risk_score(LBGI)
+    HBGI_RS = risk_metrics.hbgi_risk_score(HBGI)
 
     # Possible Hourly cgm data
     # cgm_data['hour'] = cgm_data['rounded_local_time'].dt.hour
@@ -1110,10 +661,28 @@ def combine_all_data_into_timeseries(
     return combined_5min_ts
 
 
-def add_additional_settings_to_ts(combined_5min_ts, single_report):
+def add_additional_settings_to_ts(loop_id, report_idx, combined_5min_ts, single_report):
+    """
 
-    combined_5min_ts["loop_id"] = single_report["loop_id"]
-    combined_5min_ts["report_num"] = single_report["report_num"]
+    Parameters
+    ----------
+    loop_id : str
+    report_idx : int
+    combined_5min_ts : pandas.DataFrame
+    single_report : pandas.Series
+
+    Returns
+    -------
+    combined_5min_ts : pandas.DataFrame
+
+    """
+
+    combined_5min_ts.insert(0, "loop_id", loop_id)
+    combined_5min_ts.insert(1, "report_num", report_idx)
+    combined_5min_ts.insert(2, "age_at_baseline", single_report["ageAtBaseline"])
+    combined_5min_ts.insert(3, "bmi_at_baseline", single_report["bmi"])
+    combined_5min_ts.insert(4, "bmi_perc_at_baseline", single_report["bmiPerc"])
+
     combined_5min_ts["maximum_basal_rate"] = single_report["maximum_basal_rate"]
     combined_5min_ts["maximum_bolus"] = single_report["maximum_bolus"]
     combined_5min_ts["suspend_threshold"] = single_report["suspend_threshold"]
@@ -1123,7 +692,45 @@ def add_additional_settings_to_ts(combined_5min_ts, single_report):
     return combined_5min_ts
 
 
-def main(loop_id, issue_reports, dataset_path, individual_report_results_save_path, individual_data_samples_save_path):
+def add_carb_and_insulin_weighted_settings(single_report, combined_5min_ts):
+    """
+    Some settings have more weight based on their use.
+
+    Carb ratio is weighted based on the amount of carbs entered
+    ISF is weighted based on the insulin given
+
+    Parameters
+    ----------
+    single_report : pandas.Series
+    combined_5min_ts : pandas.DataFrame
+
+    Returns
+    -------
+    single_report : pandas.Series
+
+    """
+
+    sum_weighted_cr = (combined_5min_ts["carbs"] * combined_5min_ts["carb_ratio"]).sum()
+    total_carbs = combined_5min_ts["carbs"].sum()
+    if total_carbs > 0:
+        single_report["carb_weighted_carb_ratio"] = sum_weighted_cr / total_carbs
+
+    sum_weighted_isf = (combined_5min_ts["total_insulin_delivered"] * combined_5min_ts["isf"]).sum()
+    total_insulin = combined_5min_ts["total_insulin_delivered"].sum()
+    if total_insulin > 0:
+        single_report["insulin_weighted_isf"] = sum_weighted_isf / total_insulin
+
+    return single_report
+
+
+def main(
+    loop_id,
+    issue_reports,
+    dataset_path,
+    individual_report_results_save_path,
+    time_series_data_save_path,
+    time_series_with_stats_data_save_path,
+):
     """
     For each loop_id, gather the issue reports that do not overlap.
     For each of of those issue reports, get the data ± ANALYSIS_WINDOW_DAYS around the report.
@@ -1140,8 +747,10 @@ def main(loop_id, issue_reports, dataset_path, individual_report_results_save_pa
         The path to the compressed and flattened dataset file (as created by batch-multiprocess-raw-jaeb-data.py)
     individual_report_results_save_path : string
         The folder path to save all the individual issue report summary results
-    individual_data_samples_save_path : string
+    time_series_data_save_path : string
         The folder path to save the time series datasets to
+    time_series_with_stats_data_save_path : string
+        The folder path to save the time series datasets containing rolling stats
 
     Returns
     -------
@@ -1174,9 +783,8 @@ def main(loop_id, issue_reports, dataset_path, individual_report_results_save_pa
                     isf_24hr_schedule,
                     carb_ratio_24hr_schedule,
                     correction_range_24hr_schedule,
-                ) = process_schedules(single_report)
+                ) = schedule_parser.process_schedules(single_report)
 
-                single_report = check_settings_units(single_report)
                 single_report, cgm_data = process_cgm_data(single_report, buffered_sample_data, sample_start_time)
                 single_report, insulin_carb_5min_ts = process_daily_insulin_and_carb_data(
                     single_report, buffered_sample_data, sample_start_time, local_timezone
@@ -1193,11 +801,22 @@ def main(loop_id, issue_reports, dataset_path, individual_report_results_save_pa
                     correction_range_24hr_schedule,
                 )
 
-                combined_5min_ts = add_additional_settings_to_ts(combined_5min_ts, single_report)
+                combined_5min_ts = add_additional_settings_to_ts(loop_id, report_idx, combined_5min_ts, single_report)
+                single_report = add_carb_and_insulin_weighted_settings(single_report, combined_5min_ts)
 
                 data_filename = "{}-report-{}-time-series.csv".format(loop_id, report_idx)
-                data_save_path = os.path.join(individual_data_samples_save_path, data_filename)
+                data_save_path = os.path.join(time_series_data_save_path, data_filename)
                 combined_5min_ts.to_csv(data_save_path, index=False)
+
+                # Add rolling stats if cgm data is available
+                if "cgm" in combined_5min_ts.columns:
+                    hourly_values = [1, 2, 3, 5, 8]
+                    combined_5min_ts_with_rolling_stats = get_hourly_rolling_stats(combined_5min_ts, hourly_values)
+                    rolling_data_filename = "{}-report-{}-time-series-with-rolling-stats.csv.gz".format(loop_id, report_idx)
+                    rolling_data_save_path = os.path.join(
+                        time_series_with_stats_data_save_path, rolling_data_filename
+                    )
+                    combined_5min_ts_with_rolling_stats.to_csv(rolling_data_save_path, compression='gzip', index=False)
 
             else:
                 single_report["surrounding_data_available"] = False
@@ -1222,11 +841,12 @@ if __name__ == "__main__":
     issue_reports["report_timestamp"] = pd.to_datetime(issue_reports["report_timestamp"], utc=True)
 
     args = get_args()
-    loop_id, dataset_path, individual_report_results_save_path, individual_data_samples_save_path = (
+
+    main(
         args.loop_id,
+        issue_reports,
         args.dataset_path,
         args.individual_report_results_save_path,
-        args.individual_data_samples_save_path,
+        args.time_series_data_save_path,
+        args.time_series_with_stats_data_save_path,
     )
-
-    main(loop_id, issue_reports, dataset_path, individual_report_results_save_path, individual_data_samples_save_path)

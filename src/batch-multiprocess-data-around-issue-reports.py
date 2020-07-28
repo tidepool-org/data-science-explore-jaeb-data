@@ -29,7 +29,7 @@ from multiprocessing import Pool, cpu_count
 
 
 def data_around_issue_report_subprocessor(
-    loop_id_index, unique_loop_ids, dataset_list, individual_report_results_save_path, individual_data_samples_save_path
+    loop_id_index, unique_loop_ids, dataset_list, individual_report_results_save_path, time_series_data_save_path, time_series_with_stats_data_save_path
 ):
 
     if loop_id_index % 10 == 0:
@@ -63,8 +63,10 @@ def data_around_issue_report_subprocessor(
             dataset_path,
             "-individual_report_results_save_path",
             individual_report_results_save_path,
-            "-individual_data_samples_save_path",
-            individual_data_samples_save_path,
+            "-time_series_data_save_path",
+            time_series_data_save_path,
+            "-time_series_with_stats_data_save_path",
+            time_series_with_stats_data_save_path
         ],
         stdout=sub.PIPE,
         stderr=sub.PIPE,
@@ -109,22 +111,13 @@ def find_closest_issue_report_to_event(loop_id, all_results, event_date):
     return closest_index, report_days_away_from_event
 
 
-def add_bmi_data_to_results(all_results, bmi_data_location):
-    bmi_data = pd.read_csv(bmi_data_location)
-    bmi_data.rename(columns={"PtID": "loop_id"}, inplace=True)
-
-    all_results = all_results.merge(bmi_data, on="loop_id", how="left")
-
-    return all_results
-
-
 def add_sh_event_data_to_results(all_results, sh_data_location):
     sh_data = pd.read_csv(sh_data_location)
     sh_data.rename(columns={"Participant ID": "loop_id"}, inplace=True)
 
     # Replace unknown event dates with survey date - 1 day
     missing_dates = sh_data["reported  SH date"] == "Participant doesn't know"
-    sh_data.loc[missing_dates, "reported SH date"] = pd.to_datetime(
+    sh_data.loc[missing_dates, "reported  SH date"] = pd.to_datetime(
         sh_data.loc[missing_dates, "survey date"]
     ) - datetime.timedelta(days=1)
 
@@ -180,8 +173,6 @@ def add_dka_event_data_to_results(all_results, dka_data_location):
             all_results.loc[closest_index, "report_days_away_from_dka_event"] = report_days_away_from_event
 
     return all_results
-
-
 # %%
 if __name__ == "__main__":
     today_timestamp = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -189,10 +180,13 @@ if __name__ == "__main__":
 
     dataset_location = "data/processed/PHI-compressed-data/"
     individual_report_results_save_path = "data/processed/individual-report-results-{}/".format(today_timestamp)
-    individual_data_samples_save_path = "data/processed/time-series-data-around-issue-reports-{}/".format(
+    time_series_data_save_path = "data/processed/time-series-data-around-issue-reports-{}/".format(
         today_timestamp
     )
-    save_dirs = [individual_report_results_save_path, individual_data_samples_save_path]
+    time_series_with_stats_data_save_path = "data/processed/time-series-data-with-stats-around-issue-reports-{}/".format(
+        today_timestamp
+    )
+    save_dirs = [individual_report_results_save_path, time_series_data_save_path, time_series_with_stats_data_save_path]
 
     for dir in save_dirs:
         if not os.path.exists(dir):
@@ -214,7 +208,8 @@ if __name__ == "__main__":
                 unique_loop_ids,
                 dataset_list,
                 individual_report_results_save_path,
-                individual_data_samples_save_path,
+                time_series_data_save_path,
+                time_series_with_stats_data_save_path,
             ],
         )
         for loop_id_index in range(len(unique_loop_ids))
@@ -223,17 +218,16 @@ if __name__ == "__main__":
     pool.close()
     pool.join()
 
-    # Combine all results and add BMI/Age and Adverse Event Data
-    all_results = combine_all_results(individual_report_results_save_path)
+    # Combine all results with Adverse Event Data
 
-    bmi_data_location = "data/Loop BMI Data.csv"
     sh_data_location = "data/Loop SH Review.csv"
     dka_data_location = "data/Loop DKA Review.csv"
 
-    all_results = add_bmi_data_to_results(all_results, bmi_data_location)
+    all_results = combine_all_results(individual_report_results_save_path)
+    all_results.sort_values(by="loop_id", inplace=True)
+
     all_results = add_sh_event_data_to_results(all_results, sh_data_location)
     all_results = add_dka_event_data_to_results(all_results, dka_data_location)
-    all_results.sort_values(by="loop_id", inplace=True)
 
     today_timestamp = datetime.datetime.now().strftime("%Y-%m-%d")
     all_results.to_csv(
