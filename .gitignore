@@ -99,3 +99,7 @@ venv.bak/
 .spyderproject
 .spyproject
 
+
+data/old-data/
+
+data/
