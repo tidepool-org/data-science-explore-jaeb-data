@@ -9,7 +9,7 @@ import math
 
 base_path = Path(__file__).parent
 # data_path = (base_path / "../data/PHI-filtered-subjects.csv").resolve()
-data_path = (base_path / "../data/PHI-less-optimal-subjects.csv").resolve()
+data_path = (base_path / "../data/PHI-less-ideal-setting-subjects.csv").resolve()
 df = pd.read_csv(data_path)
 
 def basal_eq(tdd, carbs):
@@ -55,15 +55,19 @@ utils.two_dimension_plot(df[basal_key], basal_residual, ["Basal", "Residual"])
 
 """ ISF Analysis """
 df["predicted_isf"] = df.apply(lambda x: isf_eq(x[tdd_key], x[bmi_key], x[age_key]), axis=1)
+df["1800_isf"] = df.apply(lambda x: 1800 / x[tdd_key], axis=1)
 isf_residual = df[isf_key] - df["predicted_isf"]
 print(df.head())
 print("ISF RMSE:", utils.rmse(df[isf_key], df["predicted_isf"]))
-utils.two_dimension_plot(df[isf_key], isf_residual, ["ISF", "Residual"])
+# utils.two_dimension_plot(df[isf_key], isf_residual, ["ISF", "Residual"])
+utils.two_dimension_plot(df[isf_key], df[isf_key] - df["1800_isf"], ["ISF", "1800 Residual"])
 # utils.two_dimension_plot(df[carb_key], isf_residual, ["ISF", "Residual"])
 # utils.three_dimension_plot(isf_residual, df[tdd_key], df[bmi_key], ["Residual", "TDD", "BMI"])
 
 """ ICR Analysis """
 df["predicted_icr"] = df.apply(lambda x: icr_eq(x[tdd_key], x[carb_key]), axis=1)
+df["1800_icr"] = df.apply(lambda x: 500 / x[tdd_key], axis=1)
 utils.two_dimension_plot(df[icr_key], df[icr_key] - df["predicted_icr"], ["ICR", "Residual"])
+# utils.two_dimension_plot(df[icr_key], df[icr_key] - df["1800_icr"], ["1800 ICR", "Residual"])
 
 
