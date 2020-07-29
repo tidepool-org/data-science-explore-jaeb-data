@@ -41,6 +41,34 @@ def filter_data_for_equation_verification(df):
         & (df.days_with_basals >= 14)
     ]
 
+def filter_data_for_peds_equation_verification(df):
+    """ Filter to get pediatric data that's not ideal but close to it,
+    for the purpose of testing the equations """
+    df = df.dropna(subset=["basal_rate_schedule"])
+    return df[
+        (df.ageAtBaseline < 18)
+        & (df.percent_cgm_available >= 90)
+        & (df.percent_70_180 >= 70)
+        & (df.percent_below_54 > 1)
+        & (df.percent_below_54 < 1.5)
+        & (df.percent_below_40 == 0)
+        & (df.days_with_carbs >= 14)
+        & (df.days_with_insulin >= 14)
+        & (df.days_with_basals >= 14)
+    ]
+
+def filter_data_for_non_ideal_settings(df):
+    """ Filter to get settings that likely aren't correct """
+    df = df.dropna(subset=["basal_rate_schedule"])
+    return df[
+        (df.ageAtBaseline >= 18)
+        & (df.percent_cgm_available >= 90)
+        & (df.percent_below_54 > 5)
+        & (df.days_with_carbs >= 14)
+        & (df.days_with_insulin >= 14)
+        & (df.days_with_basals >= 14)
+    ]
+
 def three_dimension_plot(x, y, z, labels=["", "", ""], title=""):
     """
     Function to plot a 3D graph of data, with optional labels & a title
