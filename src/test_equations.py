@@ -9,7 +9,7 @@ import math
 
 base_path = Path(__file__).parent
 # data_path = (base_path / "../data/PHI-filtered-subjects.csv").resolve()
-data_path = (base_path / "../data/PHI-less-ideal-setting-subjects.csv").resolve()
+data_path = (base_path / "../data/PHI-more-hypo-subjects.csv").resolve()
 df = pd.read_csv(data_path)
 
 def basal_eq(tdd, carbs):
@@ -18,8 +18,8 @@ def basal_eq(tdd, carbs):
 def bmi_basal_eq(tdd, carbs, bmi):
     return 0.6187139 * tdd * math.exp(-0.001498 * carbs) + 0.06408586 * bmi
 
-def isf_eq(tdd, bmi, age):
-    return 5471/(math.log(tdd) * bmi)
+def isf_eq(tdd, bmi):
+    return 40250/(tdd*bmi)
 
 def icr_eq(tdd, carbs):
     return (1.31 * carbs + 136.3) / tdd
@@ -50,17 +50,19 @@ df["predicted_basals_bmi"] = df.apply(lambda x: bmi_basal_eq(x[tdd_key], x[carb_
 df.dropna(subset=["predicted_basals", "predicted_basals_bmi"])
 
 basal_residual = df[basal_key] - df["predicted_basals"]
-utils.two_dimension_plot(df[basal_key], basal_residual, ["Basal", "Residual"])
+# utils.two_dimension_plot(df[basal_key], basal_residual, ["Basal", "Residual"])
 # utils.two_dimension_plot(df[age_key], basal_residual)
 
 """ ISF Analysis """
-df["predicted_isf"] = df.apply(lambda x: isf_eq(x[tdd_key], x[bmi_key], x[age_key]), axis=1)
+df["predicted_isf"] = df.apply(lambda x: isf_eq(x[tdd_key], x[bmi_key]), axis=1)
 df["1800_isf"] = df.apply(lambda x: 1800 / x[tdd_key], axis=1)
+df["age_isf"] = df.apply(lambda x: age_isf_eq(x[tdd_key], x[bmi_key], x[age_key]), axis=1)
 isf_residual = df[isf_key] - df["predicted_isf"]
 print(df.head())
 print("ISF RMSE:", utils.rmse(df[isf_key], df["predicted_isf"]))
-# utils.two_dimension_plot(df[isf_key], isf_residual, ["ISF", "Residual"])
-utils.two_dimension_plot(df[isf_key], df[isf_key] - df["1800_isf"], ["ISF", "1800 Residual"])
+print("ISF Age RMSE:", utils.rmse(df[isf_key], df["age_isf"]))
+utils.two_dimension_plot(df[isf_key], isf_residual, ["ISF", "Residual"])
+# utils.two_dimension_plot(df[isf_key], df[isf_key] - df["1800_isf"], ["ISF", "1800 Residual"])
 # utils.two_dimension_plot(df[carb_key], isf_residual, ["ISF", "Residual"])
 # utils.three_dimension_plot(isf_residual, df[tdd_key], df[bmi_key], ["Residual", "TDD", "BMI"])
 
