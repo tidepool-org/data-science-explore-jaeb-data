@@ -82,10 +82,10 @@ def three_dimension_plot(x, y, z, labels=["", "", ""], title=""):
     ax.set_ylabel(labels[1])
     ax.set_zlabel(labels[2])
 
-    plt.title(title, fontsize=14)
+    plt.title(title, fontsize=30)
     plt.show()
 
-def two_dimension_plot(x, y, labels=["", ""], title=""):
+def two_dimension_plot(x, y, labels=["", ""], title="", ylim=None):
     """
     Function to plot a 2D graph of data, with optional labels & a title
     """
@@ -96,6 +96,10 @@ def two_dimension_plot(x, y, labels=["", ""], title=""):
     plt.xlabel(labels[0])
     plt.ylabel(labels[1])
 
-    plt.title(title, fontsize=14)
+    axes = plt.gca()
+    if ylim:
+        axes.set_ylim(ylim)
+
+    plt.title(title, fontsize=30)
     plt.show()
 
