@@ -19,10 +19,12 @@ isf_key = "insulin_weighted_isf"
 icr_key = "carb_weighted_carb_ratio"
 age_key = "ageAtBaseline"
 
+
 def equation_without_bmi(matrix, a, b):
     # x[0] = tdd, x[1] = carbs
     transpose = zip(*matrix)
     return [a * x[0] * math.exp(b * x[1]) for x in transpose]
+
 
 def equation_with_bmi(matrix, a, b, c):
     # x[0] = tdd, x[1] = carbs, x[2] = bmi
@@ -37,9 +39,10 @@ carbs = df[carb_key]
 bmi = df[bmi_key]
 basal = df[basal_key]
 
-popt, pcov = curve_fit(equation_without_bmi, [tdd, carbs], basal, p0=[0, -.001])
+popt, pcov = curve_fit(equation_without_bmi, [tdd, carbs], basal, p0=[0, -0.001])
 print(popt)
 
-popt, pcov = curve_fit(equation_with_bmi, [tdd, carbs, bmi], basal, p0=[0, -.001, .05])
+popt, pcov = curve_fit(
+    equation_with_bmi, [tdd, carbs, bmi], basal, p0=[0, -0.001, 0.05]
+)
 print(popt)
-

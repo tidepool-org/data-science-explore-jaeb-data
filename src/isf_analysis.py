@@ -26,6 +26,7 @@ def equation_without_age(matrix, a):
     transpose = zip(*matrix)
     return [a / (x[0] * x[1]) for x in transpose]
 
+
 def equation_with_age(matrix, a, b):
     # x[0] = tdd, x[1] = bmi, x[2] = age
     transpose = zip(*matrix)
@@ -42,6 +43,5 @@ isf = df[isf_key]
 popt, pcov = curve_fit(equation_without_age, [tdd, bmi], isf, p0=[4000])
 print(popt)
 
-popt, pcov = curve_fit(equation_with_age, [tdd, bmi, age], isf, p0=[4000, -.1])
+popt, pcov = curve_fit(equation_with_age, [tdd, bmi, age], isf, p0=[4000, -0.1])
 print(popt)
-

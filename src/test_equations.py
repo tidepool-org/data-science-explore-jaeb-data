@@ -12,24 +12,28 @@ base_path = Path(__file__).parent
 data_path = (base_path / "../data/PHI-more-hypo-subjects.csv").resolve()
 df = pd.read_csv(data_path)
 
+
 def basal_eq(tdd, carbs):
     return 0.6507 * tdd * math.exp(-0.001498 * carbs)
+
 
 def bmi_basal_eq(tdd, carbs, bmi):
     return 0.6187139 * tdd * math.exp(-0.001498 * carbs) + 0.06408586 * bmi
 
+
 def isf_eq(tdd, bmi):
-    return 40250/(tdd*bmi)
+    return 40250 / (tdd * bmi)
+
 
 def icr_eq(tdd, carbs):
     return (1.31 * carbs + 136.3) / tdd
+
 
 df = df[
     (df.basal_total_daily_geomean > 1)
     # Normal weight
     # & (df.bmi < 25)
     # & (df.bmi > 10)
-
     # Overweight
     # & (df.bmi > 25)
     # & (df.bmi < 30)
@@ -46,7 +50,9 @@ age_key = "ageAtBaseline"
 
 """ Basal Analysis """
 df["predicted_basals"] = df.apply(lambda x: basal_eq(x[tdd_key], x[carb_key]), axis=1)
-df["predicted_basals_bmi"] = df.apply(lambda x: bmi_basal_eq(x[tdd_key], x[carb_key], x[bmi_key]), axis=1)
+df["predicted_basals_bmi"] = df.apply(
+    lambda x: bmi_basal_eq(x[tdd_key], x[carb_key], x[bmi_key]), axis=1
+)
 df.dropna(subset=["predicted_basals", "predicted_basals_bmi"])
 
 basal_residual = df[basal_key] - df["predicted_basals"]
@@ -56,7 +62,9 @@ basal_residual = df[basal_key] - df["predicted_basals"]
 """ ISF Analysis """
 df["predicted_isf"] = df.apply(lambda x: isf_eq(x[tdd_key], x[bmi_key]), axis=1)
 df["1800_isf"] = df.apply(lambda x: 1800 / x[tdd_key], axis=1)
-df["age_isf"] = df.apply(lambda x: age_isf_eq(x[tdd_key], x[bmi_key], x[age_key]), axis=1)
+df["age_isf"] = df.apply(
+    lambda x: age_isf_eq(x[tdd_key], x[bmi_key], x[age_key]), axis=1
+)
 isf_residual = df[isf_key] - df["predicted_isf"]
 print(df.head())
 print("ISF RMSE:", utils.rmse(df[isf_key], df["predicted_isf"]))
@@ -69,7 +77,7 @@ utils.two_dimension_plot(df[isf_key], isf_residual, ["ISF", "Residual"])
 """ ICR Analysis """
 df["predicted_icr"] = df.apply(lambda x: icr_eq(x[tdd_key], x[carb_key]), axis=1)
 df["1800_icr"] = df.apply(lambda x: 500 / x[tdd_key], axis=1)
-utils.two_dimension_plot(df[icr_key], df[icr_key] - df["predicted_icr"], ["ICR", "Residual"])
+utils.two_dimension_plot(
+    df[icr_key], df[icr_key] - df["predicted_icr"], ["ICR", "Residual"]
+)
 # utils.two_dimension_plot(df[icr_key], df[icr_key] - df["1800_icr"], ["1800 ICR", "Residual"])
-
-

@@ -1,4 +1,3 @@
-
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -8,21 +7,27 @@ from pathlib import Path
 from scipy.optimize import curve_fit
 
 base_path = Path(__file__).parent
-data_path = (base_path / "../data/PHI-issue-reports-with-surrounding-2week-data-summary-stats-2020-07-23.csv").resolve()
+data_path = (
+    base_path
+    / "../data/PHI-issue-reports-with-surrounding-2week-data-summary-stats-2020-07-28.csv"
+).resolve()
 df = pd.read_csv(data_path)
 
-df = utils.filter_data_for_equations(df)
+# df = utils.filter_data_for_equations(df)
+df = utils.filter_data_for_non_ideal_settings(df)
 print(df.count)
+export_path = (base_path / "../results/PHI-filtered-subjects.csv").resolve()
+df.to_csv(export_path)
 
 # % Basals
-'''
+"""
 tdd: insulin_total_daily_geomean
 carbs: carbs_total_daily_geomean
 basal: basal_total_daily_geomean
-'''
+"""
 labels = ["TDD", "Carbs", "Basal Rate"]
 # utils.three_dimension_plot(
-#     df["insulin_total_daily_geomean"], 
+#     df["insulin_total_daily_geomean"],
 #     df["carbs_total_daily_geomean"],
 #     df["basal_total_daily_geomean"],
 #     labels=labels
@@ -45,13 +50,11 @@ df["bmi_and_carb_adj_basal"] = df["carb_adj_basal"] / df["bmi"]
 
 
 # Graph for residuals
-utils.two_dimension_plot(
-    df["ageAtBaseline"],
-    df["bmi_adj_basal"],
-    labels=["Age", "BMI-Adjusted Basal"]
-)
-
-
+# utils.two_dimension_plot(
+#     df["ageAtBaseline"],
+#     df["bmi_adj_basal"],
+#     labels=["Age", "BMI-Adjusted Basal"]
+# )
 
 # plt.scatter(df["ageAtBaseline"], df["bmi_and_carb_adj_basal"])
 # plt.plot(df["ageAtBaseline"], exponential(df["ageAtBaseline"], *coeff), linestyle='--', linewidth=2, color='black')
