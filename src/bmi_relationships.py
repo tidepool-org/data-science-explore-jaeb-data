@@ -24,49 +24,29 @@ age_key = "ageAtBaseline"
 tir_key = "percent_70_180"
 
 print(df.bmiPerc.head())
-peds = df[
-    (df[age_key] < 18)
-    & (df[tir_key] > 0)
-    & (df.bmiPerc != ".")
-]
+peds = df[(df[age_key] < 18) & (df[tir_key] > 0) & (df.bmiPerc != ".")]
 peds.bmiPerc = peds.bmiPerc.apply(utils.extract_bmi_percentile)
 
-df = df[
-    (df[age_key] >= 18)
-    & (df[tir_key] > 0)
-]
+df = df[(df[age_key] >= 18) & (df[tir_key] > 0)]
 
-underweight = df[
-    (df.bmi < 18.5)
-]
+underweight = df[(df.bmi < 18.5)]
 
-normal_weight = df[
-    (df.bmi >= 18.5)
-    & (df.bmi < 25)
-]
+normal_weight = df[(df.bmi >= 18.5) & (df.bmi < 25)]
 
-overweight = df[
-    (df.bmi >= 25)
-]
+overweight = df[(df.bmi >= 25)]
 
 boxplot_data = []
 ticks = [str(bmi) for bmi in range(18, 48)]
 for bmi in range(18, 48):
-    filtered = df[
-        (df.bmi >= bmi)
-        & (df.bmi < bmi + 1)
-    ]
+    filtered = df[(df.bmi >= bmi) & (df.bmi < bmi + 1)]
     boxplot_data.append(filtered[tir_key].tolist())
 
 peds_boxplot_data = []
 peds_ticks = [str(bmi) for bmi in range(0, 100, 5)]
 for perc in range(0, 100, 5):
-    filtered = peds[
-        (peds.bmiPerc >= perc)
-        & (peds.bmiPerc < perc + 5)
-    ]
+    filtered = peds[(peds.bmiPerc >= perc) & (peds.bmiPerc < perc + 5)]
     peds_boxplot_data.append(filtered[tir_key].tolist())
-    
+
 
 """ Distribution plots """
 # utils.two_dimension_plot(underweight[bmi_key], underweight[tir_key], ["BMI", "TIR"], "TIR vs BMI: Underweight")

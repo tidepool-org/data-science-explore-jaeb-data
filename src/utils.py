@@ -2,12 +2,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
+
 def extract_bmi_percentile(s):
-    """ 
+    """
     Extract a bmi percentile from a string.
     Precondition: string must be in format 'number%' (ex: '20%')
     """
     return int(s[:-1])
+
 
 def three_dimension_plot(x, y, z, labels=["", "", ""], title=""):
     """
@@ -44,8 +46,9 @@ def two_dimension_plot(x, y, labels=["", ""], title="", ylim=None):
     plt.title(title, fontsize=30)
     plt.show()
 
+
 def box_plot(y, x_tick_labels=None, axis_labels=["", ""], title=""):
-    """ Plot a box plot """   
+    """ Plot a box plot """
     fig = plt.figure(1, figsize=(9, 6))
     ax = fig.add_subplot(111)
     ax.boxplot(y)
@@ -53,9 +56,9 @@ def box_plot(y, x_tick_labels=None, axis_labels=["", ""], title=""):
     ax.get_yaxis().tick_left()
 
     if x_tick_labels:
-        assert(len(x_tick_labels) == len(y))
+        assert len(x_tick_labels) == len(y)
         ax.set_xticklabels(x_tick_labels)
-    
+
     plt.xlabel(axis_labels[0])
     plt.ylabel(axis_labels[1])
     plt.title(title, fontsize=30)
