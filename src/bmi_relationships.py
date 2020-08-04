@@ -30,9 +30,7 @@ peds.bmiPerc = peds.bmiPerc.apply(utils.extract_bmi_percentile)
 df = df[(df[age_key] >= 18) & (df[tir_key] > 0)]
 
 underweight = df[(df.bmi < 18.5)]
-
 normal_weight = df[(df.bmi >= 18.5) & (df.bmi < 25)]
-
 overweight = df[(df.bmi >= 25)]
 
 boxplot_data = []
@@ -71,5 +69,26 @@ for perc in range(0, 100, 5):
 # plt.show()
 
 """ Log BMI Distribution for Adults"""
-np.log(df.bmi).value_counts().sort_index().plot.bar()
+# np.log(df.bmi).value_counts().sort_index().plot.bar()
+# plt.show()
+
+""" Carb Distribution """
+bins = [num for num in range(0, 300, 10)]
+counts = pd.cut(df[carb_key], bins).value_counts().sort_index()
+counts.plot.bar()
 plt.show()
+
+""" TIR Distribution """
+bins = [num for num in range(0, 100, 5)]
+counts = pd.cut(df[tir_key], bins).value_counts().sort_index()
+counts.plot.bar()
+plt.show()
+
+""" Carb & TIR Relationship """
+# carb_boxplot_data = []
+# carb_ticks = [str(carb) for carb in range(0, 300, 5)]
+# for carbs in range(0, 300, 5):
+#     filtered = df[(df[carb_key] >= carbs) & (df[carb_key] < carbs + 5)]
+#     carb_boxplot_data.append(filtered[tir_key].tolist())
+# utils.box_plot(carb_boxplot_data, carb_ticks, ["Carbs", "TIR"], "TIR vs Carbs: Adult")
+# utils.two_dimension_plot(df[carb_key], df[tir_key], ["Carbs", "TIR"])
