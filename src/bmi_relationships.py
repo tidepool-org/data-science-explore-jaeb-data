@@ -79,7 +79,17 @@ for perc in range(0, 100, 5):
 # utils.box_plot(peds_boxplot_data, peds_ticks, ["BMI Percentile", "TIR"], "TIR vs BMI: Child")
 
 """ BMI Distribution for Peds """
-bins = [num for num in range(0, 100, 5)]
-counts = pd.cut(peds.bmiPerc, bins).value_counts().sort_index()
-counts.plot.bar()
+# bins = [num for num in range(0, 100, 5)]
+# counts = pd.cut(peds.bmiPerc, bins).value_counts().sort_index()
+# counts.plot.bar()
+# plt.show()
+
+""" BMI Distribution for Adults """
+# bins = [num for num in range(10, 48)]
+# counts = pd.cut(df.bmi, bins).value_counts().sort_index()
+# counts.plot.bar()
+# plt.show()
+
+""" Log BMI Distribution for Adults"""
+np.log(df.bmi).value_counts().sort_index().plot.bar()
 plt.show()
