@@ -65,16 +65,27 @@ def box_plot(y, x_tick_labels=None, axis_labels=["", ""], title=""):
 
     plt.show()
 
-def generate_boxplot_data(df, data_key, range):
+def generate_boxplot_data(df, y_data_key, range, x_data_key=None):
     """
     df - dataframe with Jaeb data
-    data_key - string of column to process
+    y_data_key - string of column that should have the boxplot generated
     range - range iterable to use to determine windows
+    x_data_key - string of column that have boxplots generated over specific 
+    ranges of this column
     """
+    '''
+    If we only want to plot 1 datatype on the box plot 
+    (like just BMI box plot instead of a series of BMI 
+    plots based on particular ages), then x_data_key should
+    be same as y_data_key
+    '''
+    if not x_data_key:
+        x_data_key = y_data_key
+
     boxplot_data = []
     for val in range:
-        filtered = df[(df[data_key] >= val) & (df[data_key] < val + 1)]
-        boxplot_data.append(filtered[data_key].tolist())
+        filtered = df[(df[x_data_key] >= val) & (df[x_data_key] < val + 1)]
+        boxplot_data.append(filtered[y_data_key].tolist())
     
     ticks = [str(val) for val in range]
     return (boxplot_data, ticks)
