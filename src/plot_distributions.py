@@ -19,5 +19,7 @@ isf_key = "insulin_weighted_isf"
 icr_key = "carb_weighted_carb_ratio"
 age_key = "ageAtBaseline"
 
-print(df[tdd_key])
-utils.box_plot(list(df[tdd_key]))
+
+tdd_range = range(0, 100, 100)
+tdd_boxplot_data, tdd_plot_ticks = utils.generate_boxplot_data(df, tdd_key, tdd_range)
+utils.box_plot(tdd_boxplot_data, tdd_plot_ticks)

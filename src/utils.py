@@ -64,3 +64,17 @@ def box_plot(y, x_tick_labels=None, axis_labels=["", ""], title=""):
     plt.title(title, fontsize=30)
 
     plt.show()
+
+def generate_boxplot_data(df, data_key, range):
+    """
+    df - dataframe with Jaeb data
+    data_key - string of column to process
+    range - range iterable to use to determine windows
+    """
+    boxplot_data = []
+    for val in range:
+        filtered = df[(df[data_key] >= val) & (df[data_key] < val + 1)]
+        boxplot_data.append(filtered[data_key].tolist())
+    
+    ticks = [str(val) for val in range]
+    return (boxplot_data, ticks)
