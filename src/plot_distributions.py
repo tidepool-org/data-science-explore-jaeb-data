@@ -21,15 +21,7 @@ icr_key = "carb_weighted_carb_ratio"
 age_key = "age_at_baseline"
 tir_key = "percent_70_180_2week"
 
-"""
-peds_boxplot_data = []
-peds_ticks = [str(bmi) for bmi in range(0, 100, 5)]
-for perc in range(0, 100, 5):
-    filtered = peds[(peds.bmiPerc >= perc) & (peds.bmiPerc < perc + 5)]
-    peds_boxplot_data.append(filtered[tir_key].tolist())
-
-utils.box_plot(peds_boxplot_data, peds_ticks, ["BMI Percentile", "TIR"], "TIR vs BMI: Child")
-"""
+utils.two_dimension_plot(df[bmi_percentile], df[tir_key])
 
 r = range(0, 100, 5)
 peds_boxplot_data, peds_ticks = utils.generate_boxplot_data(df, tir_key, r, bmi_key)
