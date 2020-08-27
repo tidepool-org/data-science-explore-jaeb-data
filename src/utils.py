@@ -52,9 +52,16 @@ def box_plot(
     group_labels=None,
     data_axis_labels=["", ""],
     title="",
-    should_be_vertical=True,
+    should_be_vertical=False,
 ):
-    """ Plot a box plot """
+    """ 
+    Plot a box plot 
+    data_to_plot - data that should be plotted
+    group_labels - if data is in particular groupings, these would be their labels
+    data_axis_labels - x/y axis labels
+    title - title of plot
+    should_be_vertical - orientation of plot
+    """
     fig = plt.figure(1, figsize=(9, 6))
     ax = fig.add_subplot(111)
     ax.boxplot(data_to_plot, vert=should_be_vertical)
@@ -97,3 +104,10 @@ def generate_boxplot_data(df, y_data_key, range, x_data_key=None, interval=1):
 
     ticks = [str(val) for val in range]
     return (boxplot_data, ticks)
+
+def plot_by_frequency(df, column_key, title="", x_axis_label="", bins=10):
+    plt.hist(df[column_key], bins=bins)
+    plt.title(title, fontsize=30)
+    plt.xlabel(x_axis_label)
+    plt.ylabel("Count of Occurrences")
+    plt.show()
