@@ -34,9 +34,13 @@ tir_key = "percent_70_180_2week"
 # utils.box_plot(df["log_" + tdd_key], data_axis_labels=["Log TDD", ""], title="Log TDD Distribution: Overall")
 
 """ Carbs per day """
+log_carb_key = "log_" + carb_key
+df[log_carb_key] = np.log(df[carb_key])
+df = df[df[log_carb_key] > -np.inf]
 # utils.box_plot(df[carb_key], data_axis_labels=["CHO Per Day", ""], title="Daily CHO Distribution: Overall")
-# df["log_" + carb_key] = np.log(df[carb_key])
-# utils.box_plot(df["log_" + carb_key], data_axis_labels=["Log CHO Per Day", ""], title="Log Daily CHO Distribution: Overall")
+# utils.box_plot(df[log_carb_key], data_axis_labels=["Log CHO Per Day", ""], title="Log Daily CHO Distribution: Overall")
+# utils.plot_by_frequency(df, carb_key, title="Daily CHO", x_axis_label="Daily CHO (g)", bins=15)
+utils.plot_by_frequency(df, log_carb_key, title="Log Daily CHO", x_axis_label="Log Daily CHO (g)", bins=30)
 
 """ BMI """
 # utils.box_plot(df[bmi_key], data_axis_labels=["BMI", ""], title="BMI Distribution: Overall")
@@ -45,17 +49,21 @@ tir_key = "percent_70_180_2week"
 # utils.plot_by_frequency(df, bmi_key, title="BMI", x_axis_label="BMI", bins=15)
 
 """ Insulin Sensitivity Factor """
+log_isf_key = "log_" + isf_key
+df[log_isf_key] = np.log(df[isf_key])
+df = df[df[log_isf_key] > -np.inf]
 # utils.box_plot(df[isf_key], data_axis_labels=["ISF", ""], title="ISF Distribution: Overall")
-# log_isf_key = "log_" + isf_key
-# df[log_isf_key] = np.log(df[isf_key])
-# df[log_isf_key] = df[df[log_isf_key] > -np.inf]
 # utils.box_plot(df[log_isf_key], data_axis_labels=["Log ISF", ""], title="Log ISF Distribution: Overall")
 # utils.plot_by_frequency(df, isf_key, title="ISF", x_axis_label="ISF (mg/dL/U)", bins=15)
+# utils.plot_by_frequency(df, log_isf_key, title="Log ISF", x_axis_label="Log ISF (mg/dL/U)", bins=15)
 
 """ Insulin to Carb Ratio """
+log_icr_key = "log_" + icr_key
+df[log_icr_key] = np.log(df[icr_key])
 # utils.box_plot(df[icr_key], data_axis_labels=["ICR", ""], title="ICR Distribution: Overall")
-# df["log_" + icr_key] = np.log(df[icr_key])
-# utils.box_plot(df["log_" + icr_key], data_axis_labels=["Log ICR", ""], title="Log ICR Distribution: Overall")
+# utils.box_plot(df[log_icr_key], data_axis_labels=["Log ICR", ""], title="Log ICR Distribution: Overall")
+# utils.plot_by_frequency(df, icr_key, title="ICR", x_axis_label="ICR (g/U)", bins=15)
+# utils.plot_by_frequency(df, log_icr_key, title="Log ICR", x_axis_label="Log ICR (g/U)", bins=15)
 
 """ Time in Range """
 # utils.box_plot(df[tir_key], data_axis_labels=["TIR", ""], title="TIR Distribution: Overall")
