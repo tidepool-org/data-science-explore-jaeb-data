@@ -111,3 +111,14 @@ def plot_by_frequency(df, column_key, title="", x_axis_label="", bins=10):
     plt.xlabel(x_axis_label)
     plt.ylabel("Count of Occurrences")
     plt.show()
+
+def find_bmi(row):
+    """
+    Assumes height is cm & in first column, and weight is in pounds & in second column
+    """
+    kgs = row[1]
+    meters = row[0] / 100
+    print(row)
+    print(row[0], kgs, kgs / (meters * meters))
+    print()
+    return kgs / (meters * meters)
