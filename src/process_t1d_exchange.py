@@ -36,7 +36,9 @@ age_key = "AgeAsOfEnrollDt"
 # tir_key = "percent_70_180_2week"
 
 relevent_data = icr_isf_df[[isf_key, icr_key]]
-# Get total daily carb intake, then average it on a per-pt basis
-relevent_data[carb_key] = icr_isf_df.groupby(["PtId", "DeviceDtTmDaysFromEnroll"])["CarbInput"].sum().reset_index().groupby(["PtId"])["CarbInput"].mean()
+# Get total daily carb intake
+relevent_data[carb_key] = icr_isf_df.groupby(["PtId", "DeviceDtTmDaysFromEnroll"])["CarbInput"].sum().reset_index()["CarbInput"]
 relevent_data[age_key] = age_df[age_key]
 relevent_data[bmi_key] = demographics_df[[height_key, weight_key]].apply(utils.find_bmi, axis=1)
+
+relevent_data.to_csv("t1d_exchange.csv")
