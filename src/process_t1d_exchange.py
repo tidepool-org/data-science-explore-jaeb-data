@@ -26,7 +26,7 @@ demographics_df = pd.read_csv(demographics_path)
 """ T1D Exchange """
 # tdd_key = "total_daily_dose_avg"
 # basal_key = "total_daily_basal_insulin_avg"  # Total daily basal
-# carb_key = "total_daily_carb_avg"  # Total daily CHO
+carb_key = "total_daily_carb_avg"  # Total daily carbs
 bmi_key = "bmi"
 weight_key = "Weight" # in cm
 height_key = "Height" # in lbs
@@ -36,5 +36,7 @@ age_key = "AgeAsOfEnrollDt"
 # tir_key = "percent_70_180_2week"
 
 relevent_data = icr_isf_df[[isf_key, icr_key]]
+# Get total daily carb intake, then average it on a per-pt basis
+relevent_data[carb_key] = icr_isf_df.groupby(["PtId", "DeviceDtTmDaysFromEnroll"])["CarbInput"].sum().reset_index().groupby(["PtId"])["CarbInput"].mean()
 relevent_data[age_key] = age_df[age_key]
 relevent_data[bmi_key] = demographics_df[[height_key, weight_key]].apply(utils.find_bmi, axis=1)

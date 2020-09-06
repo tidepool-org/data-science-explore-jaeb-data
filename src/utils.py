@@ -118,7 +118,4 @@ def find_bmi(row):
     """
     kgs = row[1]
     meters = row[0] / 100
-    print(row)
-    print(row[0], kgs, kgs / (meters * meters))
-    print()
     return kgs / (meters * meters)
