@@ -24,8 +24,8 @@ demographics_df = pd.read_csv(demographics_path)
 
 # Keys for working with exports
 """ T1D Exchange """
-# tdd_key = "total_daily_dose_avg"
-# basal_key = "total_daily_basal_insulin_avg"  # Total daily basal
+# tdd_key = "total_daily_dose_avg" TODO once Jaeb publishes basal data
+# basal_key = "total_daily_basal_insulin_avg"  # Total daily basal, TODO once Jaeb publishes basal data
 carb_key = "total_daily_carb_avg"  # Total daily carbs
 bmi_key = "bmi"
 weight_key = "Weight" # in cm

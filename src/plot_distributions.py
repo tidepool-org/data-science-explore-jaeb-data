@@ -12,16 +12,28 @@ data_path = (
 ).resolve()
 df = pd.read_csv(data_path)
 
-# Keys for working with exports
-tdd_key = "total_daily_dose_avg"
-basal_key = "total_daily_basal_insulin_avg"  # Total daily basal
-carb_key = "total_daily_carb_avg"  # Total daily CHO
-bmi_key = "bmi_at_baseline"
-bmi_percentile = "bmi_perc_at_baseline"
-isf_key = "isf"
-icr_key = "carb_ratio"
-age_key = "age_at_baseline"
-tir_key = "percent_70_180_2week"
+""" Keys for working with Jaeb exports """
+# tdd_key = "total_daily_dose_avg"
+# basal_key = "total_daily_basal_insulin_avg"  # Total daily basal
+# carb_key = "total_daily_carb_avg"  # Total daily CHO
+# bmi_key = "bmi_at_baseline"
+# bmi_percentile = "bmi_perc_at_baseline"
+# isf_key = "isf"
+# icr_key = "carb_ratio"
+# age_key = "age_at_baseline"
+# tir_key = "percent_70_180_2week"
+
+""" Keys for working with T1D exchange exports """
+tdd_key = None # "total_daily_dose_avg" TODO once Jaeb publishes basal data
+basal_key = None #"total_daily_basal_insulin_avg"  # Total daily basal, TODO once Jaeb publishes basal data
+carb_key = "total_daily_carb_avg"  # Total daily carbs
+bmi_key = "bmi"
+weight_key = "Weight" # in cm
+height_key = "Height" # in lbs
+isf_key = "InsulinSensitivity"
+icr_key = "InsulinCarbRatio"
+age_key = "AgeAsOfEnrollDt"
+tir_key = None
 
 """ BMI vs TIR Plot """
 # r = range(10, 50, 1)
@@ -40,7 +52,7 @@ df = df[df[log_carb_key] > -np.inf]
 # utils.box_plot(df[carb_key], data_axis_labels=["CHO Per Day", ""], title="Daily CHO Distribution: Overall")
 # utils.box_plot(df[log_carb_key], data_axis_labels=["Log CHO Per Day", ""], title="Log Daily CHO Distribution: Overall")
 # utils.plot_by_frequency(df, carb_key, title="Daily CHO", x_axis_label="Daily CHO (g)", bins=15)
-utils.plot_by_frequency(df, log_carb_key, title="Log Daily CHO", x_axis_label="Log Daily CHO (g)", bins=30)
+# utils.plot_by_frequency(df, log_carb_key, title="Log Daily CHO", x_axis_label="Log Daily CHO (g)", bins=30)
 
 """ BMI """
 # utils.box_plot(df[bmi_key], data_axis_labels=["BMI", ""], title="BMI Distribution: Overall")
