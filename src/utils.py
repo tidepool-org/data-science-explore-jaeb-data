@@ -53,6 +53,7 @@ def box_plot(
     data_axis_labels=["", ""],
     title="",
     should_be_vertical=False,
+    should_export=False
 ):
     """ 
     Plot a box plot 
@@ -76,7 +77,11 @@ def box_plot(
     plt.ylabel(data_axis_labels[1])
     plt.title(title, fontsize=30)
 
-    plt.show()
+    if should_export:
+        file_name = title + ".png"
+        plt.savefig(file_name)
+    else:
+        plt.show()
 
 
 def generate_boxplot_data(df, y_data_key, range, x_data_key=None, interval=1):
@@ -105,12 +110,16 @@ def generate_boxplot_data(df, y_data_key, range, x_data_key=None, interval=1):
     ticks = [str(val) for val in range]
     return (boxplot_data, ticks)
 
-def plot_by_frequency(df, column_key, title="", x_axis_label="", bins=10):
+def plot_by_frequency(df, column_key, title="", x_axis_label="", bins=10, should_export=False):
     plt.hist(df[column_key], bins=bins)
     plt.title(title, fontsize=30)
     plt.xlabel(x_axis_label)
     plt.ylabel("Count of Occurrences")
-    plt.show()
+    if should_export:
+        file_name = title + ".png" if len(title) else column_key + ".png"
+        plt.savefig(file_name)
+    else:
+        plt.show()
 
 def find_bmi(row):
     """
