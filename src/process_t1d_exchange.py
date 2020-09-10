@@ -1,13 +1,12 @@
 import pandas as pd
 import numpy as np
 import utils
-from pathlib import Path
+import utils
 import math
 
-base_path = Path(__file__).parent
-isf_icr_path = (base_path / "../data/HDeviceWizard.csv").resolve()
-age_path = base_path / "../data/HPtRoster.csv"
-demographics_path = base_path / "../data/HScreening.csv"
+isf_icr_path = utils.find_full_path("HDeviceWizard", ".csv")
+age_path = utils.find_full_path("HPtRoster", ".csv")
+demographics_path = utils.find_full_path("HScreening", ".csv")
 
 icr_isf_df = pd.read_csv(isf_icr_path)
 age_df = pd.read_csv(age_path)

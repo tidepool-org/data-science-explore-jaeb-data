@@ -1,6 +1,8 @@
+import os
 import pandas as pd
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from pathlib import Path
 
 
 def extract_bmi_percentile(s):
@@ -146,24 +148,6 @@ def find_bmi(row):
     return kgs / (meters * meters)
 
 
-def load_fixture(resource_name, extension):
-    """ Load file given name and extension
-
-    Arguments:
-    resource_name -- name of file without the extension
-    extension -- ending of file (ex: ".json")
-
-    Output:
-    contents of file
-    """
-    path = find_full_path(resource_name, extension)
-
-    with open(path) as json_file:
-        file = json.load(json_file)
-
-    return file
-
-
 def find_full_path(resource_name, extension):
     """ Find file path, given name and extension
         example: "/home/pi/Media/tidepool_demo.json"
@@ -177,12 +161,12 @@ def find_full_path(resource_name, extension):
     Output:
     path to file
     """
-    search_dir = os.path.dirname(__file__)
+    search_dir = Path(__file__).parent.parent
+    print(search_dir)
     for root, dirs, files in os.walk(search_dir):  # pylint: disable=W0612
         for name in files:
             (base, ext) = os.path.splitext(name)
             if base == resource_name and extension == ext:
                 return os.path.join(root, name)
 
-    print("No file found for that key")
-    return ""
+    raise Exception("No file found for specified resource name & extension")

@@ -2,15 +2,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import utils
-from pathlib import Path
 import math
 
-base_path = Path(__file__).parent
-data_path = (
-    base_path
-    # / "../data/PHI-unique-settings-with-3hr-hysteresis-from-all-data-five-minute-8hr-outcomes-2020-08-19-23-v0-1-0-ed.csv"
-    / "../data/t1d_exchange.csv"
-).resolve()
+data_path = utils.find_full_path("PHI-unique-settings-with-3hr-hysteresis-from-all-data-five-minute-8hr-outcomes-2020-08-19-23-v0-1-0-ed", ".csv")
+# data_path = utils.find_full_path("t1d_exchange", ".csv")
 df = pd.read_csv(data_path)
 
 """ Keys for working with Jaeb exports """
@@ -24,13 +19,13 @@ df = pd.read_csv(data_path)
 # tir_key = "percent_70_180_2week"
 
 """ Keys for working with T1D exchange exports """
-tdd_key = None  # "total_daily_dose_avg" TODO once Jaeb publishes basal data
-basal_key = None  # "total_daily_basal_insulin_avg"  # Total daily basal, TODO once Jaeb publishes basal data
-carb_key = "total_daily_carb_avg"  # Total daily carbs
-bmi_key = "bmi"
-isf_key = "InsulinSensitivity"
-icr_key = "InsulinCarbRatio"
-tir_key = None
+# tdd_key = None  # "total_daily_dose_avg" TODO once Jaeb publishes basal data
+# basal_key = None  # "total_daily_basal_insulin_avg"  # Total daily basal, TODO once Jaeb publishes basal data
+# carb_key = "total_daily_carb_avg"  # Total daily carbs
+# bmi_key = "bmi"
+# isf_key = "InsulinSensitivity"
+# icr_key = "InsulinCarbRatio"
+# tir_key = None
 
 """ BMI vs TIR Plot """
 # r = range(10, 50, 1)
