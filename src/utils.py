@@ -118,6 +118,7 @@ def plot_by_frequency(df, column_key, title="", x_axis_label="", bins=10, should
     if should_export:
         file_name = title + ".png" if len(title) else column_key + ".png"
         plt.savefig(file_name)
+        plt.clf()
     else:
         plt.show()
 

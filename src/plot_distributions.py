@@ -8,7 +8,8 @@ import math
 base_path = Path(__file__).parent
 data_path = (
     base_path
-    / "../data/PHI-unique-settings-with-3hr-hysteresis-from-all-data-five-minute-8hr-outcomes-2020-08-19-23-v0-1-0-ed.csv"
+    # / "../data/PHI-unique-settings-with-3hr-hysteresis-from-all-data-five-minute-8hr-outcomes-2020-08-19-23-v0-1-0-ed.csv"
+    / "../data/t1d_exchange.csv"
 ).resolve()
 df = pd.read_csv(data_path)
 
@@ -47,6 +48,8 @@ tir_key = None
 
 """ Carbs per day """
 log_carb_key = "log_" + carb_key
+# Avoid divide by zero error
+df[carb_key] = df[carb_key].replace(0, 1)
 df[log_carb_key] = np.log(df[carb_key])
 df = df[df[log_carb_key] > -np.inf]
 # utils.box_plot(df[carb_key], data_axis_labels=["CHO Per Day", ""], title="Daily CHO Distribution: Overall")
@@ -62,6 +65,8 @@ df = df[df[log_carb_key] > -np.inf]
 
 """ Insulin Sensitivity Factor """
 log_isf_key = "log_" + isf_key
+# Avoid divide by zero error
+df[isf_key] = df[isf_key].replace(0, 1)
 df[log_isf_key] = np.log(df[isf_key])
 df = df[df[log_isf_key] > -np.inf]
 # utils.box_plot(df[isf_key], data_axis_labels=["ISF", ""], title="ISF Distribution: Overall")
@@ -71,6 +76,8 @@ df = df[df[log_isf_key] > -np.inf]
 
 """ Insulin to Carb Ratio """
 log_icr_key = "log_" + icr_key
+# Avoid divide by zero error
+df[icr_key] = df[icr_key].replace(0, 1)
 df[log_icr_key] = np.log(df[icr_key])
 # utils.box_plot(df[icr_key], data_axis_labels=["ICR", ""], title="ICR Distribution: Overall")
 # utils.box_plot(df[log_icr_key], data_axis_labels=["Log ICR", ""], title="Log ICR Distribution: Overall")
