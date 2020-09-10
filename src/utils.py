@@ -81,7 +81,7 @@ def box_plot(
 
     if should_export:
         file_name = title + ".png"
-        plt.savefig(file_name)
+        plt.savefig(export_path(file_name))
     else:
         plt.show()
 
@@ -133,7 +133,7 @@ def plot_by_frequency(
         plt.xlim(x_lim[0], x_lim[1])
     if should_export:
         file_name = title + ".png" if len(title) else column_key + ".png"
-        plt.savefig(file_name)
+        plt.savefig(export_path(file_name))
         plt.clf()
     else:
         plt.show()
@@ -170,3 +170,11 @@ def find_full_path(resource_name, extension):
                 return os.path.join(root, name)
 
     raise Exception("No file found for specified resource name & extension")
+
+
+def export_path(file_name, dir_name=["results"]):
+    """
+    file_name: file name with extension
+    dir_name: list with desired directories to add to parent path, in order
+    """
+    return os.path.join(Path(__file__).parent.parent, *dir_name, file_name)

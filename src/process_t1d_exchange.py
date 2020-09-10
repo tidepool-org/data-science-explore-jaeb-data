@@ -38,4 +38,4 @@ relevent_data[bmi_key] = demographics_df[[height_key, weight_key]].apply(
     utils.find_bmi, axis=1
 )
 
-relevent_data.to_csv("t1d_exchange.csv")
+relevent_data.to_csv(utils.export_path("t1d_exchange.csv"))
