@@ -90,7 +90,7 @@ def box_plot(
 
     if should_export:
         file_name = title + ".png"
-        plt.savefig(export_path(file_name))
+        plt.savefig(export_path(file_name, ["results", "figures"]))
     else:
         plt.show()
 
@@ -142,7 +142,7 @@ def plot_by_frequency(
         plt.xlim(x_lim[0], x_lim[1])
     if should_export:
         file_name = title + ".png" if len(title) else column_key + ".png"
-        plt.savefig(export_path(file_name))
+        plt.savefig(export_path(file_name, ["results", "figures"]))
         plt.clf()
     else:
         plt.show()

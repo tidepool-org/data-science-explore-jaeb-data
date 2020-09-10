@@ -58,6 +58,7 @@ log_carb_key = "log_" + carb_key
 df[carb_key] = df[carb_key].replace(0, 1)
 df[log_carb_key] = np.log(df[carb_key])
 df = df[df[log_carb_key] > -np.inf]
+
 # utils.box_plot(df[carb_key], data_axis_labels=["CHO Per Day", ""], title="Daily CHO Distribution: Overall")
 # utils.box_plot(df[log_carb_key], data_axis_labels=["Log CHO Per Day", ""], title="Log Daily CHO Distribution: Overall")
 utils.plot_by_frequency(
@@ -99,6 +100,7 @@ log_isf_key = "log_" + isf_key
 df[isf_key] = df[isf_key].replace(0, 1)
 df[log_isf_key] = np.log(df[isf_key])
 df = df[df[log_isf_key] > -np.inf]
+
 # utils.box_plot(df[isf_key], data_axis_labels=["ISF", ""], title="ISF Distribution: Overall")
 # utils.box_plot(df[log_isf_key], data_axis_labels=["Log ISF", ""], title="Log ISF Distribution: Overall")
 utils.plot_by_frequency(
@@ -125,6 +127,7 @@ log_icr_key = "log_" + icr_key
 # Avoid divide by zero error
 df[icr_key] = df[icr_key].replace(0, 1)
 df[log_icr_key] = np.log(df[icr_key])
+
 # utils.box_plot(df[icr_key], data_axis_labels=["ICR", ""], title="ICR Distribution: Overall")
 # utils.box_plot(df[log_icr_key], data_axis_labels=["Log ICR", ""], title="Log ICR Distribution: Overall")
 utils.plot_by_frequency(
