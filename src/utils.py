@@ -53,7 +53,7 @@ def box_plot(
     data_axis_labels=["", ""],
     title="",
     should_be_vertical=False,
-    should_export=False
+    should_export=False,
 ):
     """ 
     Plot a box plot 
@@ -110,7 +110,10 @@ def generate_boxplot_data(df, y_data_key, range, x_data_key=None, interval=1):
     ticks = [str(val) for val in range]
     return (boxplot_data, ticks)
 
-def plot_by_frequency(df, column_key, title="", x_axis_label="", x_lim=None, bins=10, should_export=False):
+
+def plot_by_frequency(
+    df, column_key, title="", x_axis_label="", x_lim=None, bins=10, should_export=False
+):
     """
     df - dataframe containing column titled 'column_key'
     column_key - title of column to plot frequency
@@ -133,6 +136,7 @@ def plot_by_frequency(df, column_key, title="", x_axis_label="", x_lim=None, bin
     else:
         plt.show()
 
+
 def find_bmi(row):
     """
     Assumes height is cm & in first column, and weight is in pounds & in second column
@@ -140,3 +144,45 @@ def find_bmi(row):
     kgs = row[1]
     meters = row[0] / 100
     return kgs / (meters * meters)
+
+
+def load_fixture(resource_name, extension):
+    """ Load file given name and extension
+
+    Arguments:
+    resource_name -- name of file without the extension
+    extension -- ending of file (ex: ".json")
+
+    Output:
+    contents of file
+    """
+    path = find_full_path(resource_name, extension)
+
+    with open(path) as json_file:
+        file = json.load(json_file)
+
+    return file
+
+
+def find_full_path(resource_name, extension):
+    """ Find file path, given name and extension
+        example: "/home/pi/Media/tidepool_demo.json"
+
+        This will return the *first* instance of the file
+
+    Arguments:
+    resource_name -- name of file without the extension
+    extension -- ending of file (ex: ".json")
+
+    Output:
+    path to file
+    """
+    search_dir = os.path.dirname(__file__)
+    for root, dirs, files in os.walk(search_dir):  # pylint: disable=W0612
+        for name in files:
+            (base, ext) = os.path.splitext(name)
+            if base == resource_name and extension == ext:
+                return os.path.join(root, name)
+
+    print("No file found for that key")
+    return ""
