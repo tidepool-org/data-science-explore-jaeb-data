@@ -110,11 +110,22 @@ def generate_boxplot_data(df, y_data_key, range, x_data_key=None, interval=1):
     ticks = [str(val) for val in range]
     return (boxplot_data, ticks)
 
-def plot_by_frequency(df, column_key, title="", x_axis_label="", bins=10, should_export=False):
+def plot_by_frequency(df, column_key, title="", x_axis_label="", x_lim=None, bins=10, should_export=False):
+    """
+    df - dataframe containing column titled 'column_key'
+    column_key - title of column to plot frequency
+    title - title of plot
+    x_axis_label - label of x axis
+    x_lim - list of x limits in form [left, right]
+    bins - number of bins to group data into
+    should_export - set true to save the plot to png without plotting it
+    """
     plt.hist(df[column_key], bins=bins)
     plt.title(title, fontsize=30)
     plt.xlabel(x_axis_label)
     plt.ylabel("Count of Occurrences")
+    if x_lim:
+        plt.xlim(x_lim[0], x_lim[1])
     if should_export:
         file_name = title + ".png" if len(title) else column_key + ".png"
         plt.savefig(file_name)
