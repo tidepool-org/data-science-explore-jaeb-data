@@ -3,6 +3,15 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from pathlib import Path
+from enum import Enum
+
+
+class DemographicSelection(Enum):
+    OVERALL = 1
+    PEDIATRIC = 2
+    ADULT = 3
+    ASPIRATIONAL = 4
+    NON_ASPIRATIONAL = 5
 
 
 def extract_bmi_percentile(s):
@@ -162,7 +171,6 @@ def find_full_path(resource_name, extension):
     path to file
     """
     search_dir = Path(__file__).parent.parent
-    print(search_dir)
     for root, dirs, files in os.walk(search_dir):  # pylint: disable=W0612
         for name in files:
             (base, ext) = os.path.splitext(name)
@@ -178,3 +186,11 @@ def export_path(file_name, dir_name=["results"]):
     dir_name: list with desired directories to add to parent path, in order
     """
     return os.path.join(Path(__file__).parent.parent, *dir_name, file_name)
+
+
+def get_demographic_export_path(demographic, base_file_name):
+    """ Get file path for export with the file name reflecting a particular demographic """
+    assert isinstance(demographic, DemographicSelection)
+    return export_path(demographic.name.lower() + "_" + base_file_name + ".csv")
+
+
