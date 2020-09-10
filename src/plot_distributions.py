@@ -54,8 +54,8 @@ log_basal_key = "log_" + basal_key
 df[basal_key] = df[basal_key].replace(0, 1)
 df[log_basal_key] = np.log(df[basal_key])
 df = df[df[log_basal_key] > -np.inf]
-# utils.plot_by_frequency(df, basal_key, title="Total Daily Basal", x_axis_label="Total Daily Basal (U)", bins=15, should_export=True)
-# utils.plot_by_frequency(df, log_basal_key, title="Log Total Daily Basal", x_axis_label="Log Total Daily Basal (U)", bins=15, should_export=True)
+# utils.plot_by_frequency(df, basal_key, title="Total Daily Basal", x_axis_label="Total Daily Basal (U)", bins=15, should_export=True, x_lim=[0, 160])
+# utils.plot_by_frequency(df, log_basal_key, title="Log Total Daily Basal", x_axis_label="Log Total Daily Basal (U)", bins=15, should_export=True, x_lim=[0, 6])
 
 """ Carbs per day """
 log_carb_key = "log_" + carb_key
