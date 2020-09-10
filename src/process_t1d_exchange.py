@@ -36,6 +36,7 @@ age_key = "AgeAsOfEnrollDt"
 # tir_key = "percent_70_180_2week"
 
 relevent_data = icr_isf_df[[isf_key, icr_key]]
+relevent_data[isf_key] *= 18.0182 # Convert from mmol to mg/dL
 # Get total daily carb intake
 relevent_data[carb_key] = icr_isf_df.groupby(["PtId", "DeviceDtTmDaysFromEnroll"])["CarbInput"].sum().reset_index()["CarbInput"]
 relevent_data[age_key] = age_df[age_key]
