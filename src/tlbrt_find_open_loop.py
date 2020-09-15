@@ -202,6 +202,8 @@ sorted_jos_files = sorted(all_jos_files)
 f_start = 0
 f_end = len(sorted_jos_files)
 
+total_possible_open_loop = 0
+
 for i in range(f_start, f_end):  # enumerate(sorted(all_jos_files)):
     f = sorted_jos_files[i]
     loop_id = f[-12:-3]
@@ -230,6 +232,7 @@ for i in range(f_start, f_end):  # enumerate(sorted(all_jos_files)):
                 & (temp_all_df["time"] <= data_summary.loc[i, "study_end_date"])
             )
         ]
+        .copy()
         .dropna(axis=1, how="all")
         .reset_index(drop=True)
     )
@@ -238,9 +241,10 @@ for i in range(f_start, f_end):  # enumerate(sorted(all_jos_files)):
     study_df["time"] = pd.to_datetime(study_df["time"], utc=True)
 
     # remove negative durations
-    study_df["duration"] = study_df["duration"].astype(float)
-    study_df, nNegativeDurations = removeNegativeDurations(study_df)
-    data_summary.loc[i, "nNegativeDurations"] = nNegativeDurations
+    if "duration" in study_df.columns:
+        study_df["duration"] = study_df["duration"].astype(float)
+        study_df, nNegativeDurations = removeNegativeDurations(study_df)
+        data_summary.loc[i, "nNegativeDurations"] = nNegativeDurations
 
     # get rid of cgm values too low/high (< 38 & > 402 mg/dL)
     study_df, nInvalidCgmValues = removeInvalidCgmValues(study_df)
@@ -325,181 +329,106 @@ for i in range(f_start, f_end):  # enumerate(sorted(all_jos_files)):
         data_summary.loc[i, "cgm.gaps_gt_{}_min".format(gap_threshold)] = n_gaps
 
         # capture each gap and the next CGM_WINDOW_HOURS hours of cgm data
-        gap_outcome_df = pd.DataFrame()
+        has_cgm_stats_df = pd.DataFrame()
+        open_loop_start = contig_df.loc[0, "cDateTime"]
         for g, gap_end_index in enumerate(contig_df[gap_end_locations].index):
-
             size_of_gap = contig_df.loc[gap_end_index, "timeBetweenRecords"] - 10
             gap_end = contig_df.loc[gap_end_index - 1, "cDateTime"]
             gap_start = gap_end - pd.Timedelta("{}min".format(size_of_gap - 5))
 
-            gap_df = (
-                contig_df[((contig_df["cDateTime"] >= gap_start) & (contig_df["cDateTime"] <= gap_end))]
-                .copy()
-                .reset_index()
-            )
+            if (
+                len(study_df[((study_df["rounded_time"] >= open_loop_start) & (study_df["rounded_time"] < gap_start))])
+                > 12
+            ):
 
-            gap_outcome_df.loc[g, "loop_id"] = loop_id
-            gap_outcome_df.loc[g, "gap_id"] = g
-            gap_outcome_df.loc[g, "size_of_gap_mins"] = size_of_gap
-            gap_outcome_df.loc[g, "gap_start"] = gap_start
-            gap_outcome_df.loc[g, "gap_end"] = gap_end
-
-            # add in information about how many boluses were given 30 minutes after the start of the gap
-            other_start = gap_start + pd.Timedelta("{}min".format(gap_threshold))
-            other_end = gap_end
-
-            other_df = (
-                study_df[((study_df["rounded_time"] >= other_start) & (study_df["rounded_time"] < other_end))]
-                .sort_values("rounded_time")
-                .copy()
-            )
-
-            gap_df = (
-                pd.concat(
-                    [gap_df, other_df.rename(columns={"rounded_time": "cDateTime"}).reset_index()], ignore_index=True
+                has_cgm_df = (
+                    study_df[((study_df["rounded_time"] >= open_loop_start) & (study_df["rounded_time"] < gap_start))]
+                    .copy()
+                    .dropna(axis=1, how="all")
+                    .sort_values(["rounded_time", "time"])
+                    .reset_index()
                 )
-                .sort_values(["cDateTime", "time"])
-                .reset_index(drop=True)
-            )
 
-            # capture the number of boluses, temp_basals, and smbgs
-            if "payload.HKInsulinDeliveryReason" in other_df.columns:
-                bolus_mask = (other_df["payload.HKInsulinDeliveryReason"] == 2) & (
-                    other_df["payload.HasLoopKitOrigin"] == 1
-                )
-                n_boluses_delivered = np.sum(bolus_mask)
-                gap_outcome_df.loc[g, "n_boluses_delivered"] = n_boluses_delivered
+                open_loop_start = contig_df.loc[gap_end_index, "cDateTime"]
 
-                basal_mask = (other_df["payload.HKInsulinDeliveryReason"] == 1) & (
-                    other_df["payload.HasLoopKitOrigin"] == 1
-                )
-                n_basals_delivered = np.sum(basal_mask)
-                gap_outcome_df.loc[g, "n_basals_delivered"] = n_basals_delivered
+                has_cgm_stats_df.loc[g, "loop_id"] = loop_id
+                has_cgm_stats_df.loc[g, "episode_id"] = g
 
-                if "nutrition.carbohydrate.net" in other_df.columns:
-                    n_carbs_entered = np.sum(other_df["nutrition.carbohydrate.net"].notnull())
-                    gap_outcome_df.loc[g, "n_carbs_entered"] = n_carbs_entered
+                episode_start = has_cgm_df["rounded_time"].min()
+                episode_end = has_cgm_df["rounded_time"].max()
+                has_cgm_stats_df.loc[g, "episode_start"] = episode_start
+                has_cgm_stats_df.loc[g, "episode_end"] = episode_end
 
-                # if there is at least one bolus delivered in the gap
-                if n_boluses_delivered > 0:
-                    time_of_last_bolus = other_df.loc[bolus_mask, "rounded_time"].values[-1]
+                size_of_episode_days = (episode_end - episode_start).total_seconds() / (60 * 60 * 24)
+                has_cgm_stats_df.loc[g, "size_of_episode_days"] = size_of_episode_days
 
-                    # append up to CGM_WINDOW_HOURS hours of cgm data after the last bolus if cgm data exists
-                    cgm_start_window = time_of_last_bolus
-                    cgm_end_window = time_of_last_bolus + pd.Timedelta("{}min".format(CGM_WINDOW_HOURS * 60))
-
-                    cgm_CGM_WINDOW_HOURS_after_last_bolus_df = (
-                        cgmData.loc[
-                            (
-                                (cgmData["rounded_time"] >= cgm_start_window)
-                                & (cgmData["rounded_time"] < cgm_end_window)
-                            ),
-                            ["rounded_time", "mg_dL"],
-                        ]
-                        .sort_values("rounded_time")
-                        .copy()
+                # capture the number of boluses, temp_basals, and smbgs
+                if ("payload.HKInsulinDeliveryReason" in has_cgm_df.columns) and (
+                    "payload.HasLoopKitOrigin" in has_cgm_df.columns
+                ):
+                    bolus_mask = (has_cgm_df["payload.HKInsulinDeliveryReason"] == 2) & (
+                        has_cgm_df["payload.HasLoopKitOrigin"] == 1
                     )
+                    n_boluses_delivered = np.sum(bolus_mask)
+                    has_cgm_stats_df.loc[g, "n_boluses_delivered"] = n_boluses_delivered
 
-                    # calculate the median smbg values between the time of the last bolus and the start of the cgm data
-                    if "smbg.mg_dL" in other_df.columns:
-                        n_finger_sticks = np.sum(other_df["smbg.mg_dL"].notnull())
-                        gap_outcome_df.loc[g, "n_finger_sticks"] = n_finger_sticks
+                    basal_mask = (has_cgm_df["payload.HKInsulinDeliveryReason"] == 1) & (
+                        has_cgm_df["payload.HasLoopKitOrigin"] == 1
+                    )
+                    n_basals_delivered = np.sum(basal_mask)
+                    has_cgm_stats_df.loc[g, "n_basals_delivered"] = n_basals_delivered
 
-                        if n_finger_sticks > 0:
+                    # calculate average basals delivered per day
+                    avg_basals_per_day = n_basals_delivered / size_of_episode_days
+                    has_cgm_stats_df.loc[g, "avg_basals_per_day"] = avg_basals_per_day
 
-                            last_bol_and_smbg_mask = other_df["rounded_time"] >= time_of_last_bolus
-                            n_finger_sticks_between_last_bolus_and_cgm_start = np.sum(
-                                other_df.loc[last_bol_and_smbg_mask, "smbg.mg_dL"].notnull()
-                            )
-                            gap_outcome_df.loc[
-                                g, "n_finger_sticks_between_last_bolus_and_cgm_start"
-                            ] = n_finger_sticks_between_last_bolus_and_cgm_start
+                    # if number of avg_basals_per_day is < 24 and there is more than one bolus, could be open loop mode
+                    if (avg_basals_per_day < 24) and (n_boluses_delivered > 0) and (avg_basals_per_day >= 1):
+                        possible_open_loop = 1
+                        has_cgm_stats_df.loc[g, "possible_open_loop_episode"] = possible_open_loop
+                        total_possible_open_loop = total_possible_open_loop + 1
+                        print("possible open loop count = {}, {}, {}".format(total_possible_open_loop, loop_id, g))
 
-                            if n_finger_sticks_between_last_bolus_and_cgm_start > 0:
-                                median_smbg_value = other_df.loc[last_bol_and_smbg_mask, "smbg.mg_dL"].median()
-                                gap_outcome_df.loc[g, "median_smbg_value"] = median_smbg_value
+                    if "nutrition.carbohydrate.net" in has_cgm_df.columns:
+                        n_carbs_entered = np.sum(has_cgm_df["nutrition.carbohydrate.net"].notnull())
+                        has_cgm_stats_df.loc[g, "n_carbs_entered"] = n_carbs_entered
 
-                    if len(cgm_CGM_WINDOW_HOURS_after_last_bolus_df) > 0:
+                has_cgm_df.to_csv(
+                    os.path.join("..", "data", "has_cgm", "{}-id_{}-open_{}.csv".format(loop_id, g, possible_open_loop))
+                )
 
-                        cgm_start = cgm_CGM_WINDOW_HOURS_after_last_bolus_df.loc[
-                            cgm_CGM_WINDOW_HOURS_after_last_bolus_df["rounded_time"].notnull(), "rounded_time"
-                        ].min()
-
-                        cgm_end = cgm_CGM_WINDOW_HOURS_after_last_bolus_df.loc[
-                            cgm_CGM_WINDOW_HOURS_after_last_bolus_df["rounded_time"].notnull(), "rounded_time"
-                        ].max()
-
-                        time_between_last_bolus_and_cgm_start = cgm_start - time_of_last_bolus
-                        gap_outcome_df.loc[g, "minutes_between_last_bolus_and_cgm"] = (
-                            time_between_last_bolus_and_cgm_start.total_seconds() / 60
-                        )
-
-                        # calculate stats on the CGM_WINDOW_HOURS hours here
-                        first_cgm_value = cgm_CGM_WINDOW_HOURS_after_last_bolus_df.loc[
-                            cgm_CGM_WINDOW_HOURS_after_last_bolus_df["rounded_time"] == cgm_start, "mg_dL"
-                        ]
-
-                        gap_outcome_df.loc[g, "first_cgm_value"] = first_cgm_value.values[0]
-
-                        total_cgm_values = cgm_CGM_WINDOW_HOURS_after_last_bolus_df["mg_dL"].notnull().sum()
-                        percent_cgm_values = total_cgm_values / (CGM_WINDOW_HOURS * 12) * 100
-                        gap_outcome_df.loc[g, "cgm_start"] = cgm_start
-                        gap_outcome_df.loc[g, "cgm_end"] = cgm_end
-                        gap_outcome_df.loc[g, "percent_cgm_values"] = percent_cgm_values
-                        gap_outcome_df.loc[g, "total_cgm_values"] = total_cgm_values
-
-                        if percent_cgm_values >= 70:
-                            cgm_vals = cgm_CGM_WINDOW_HOURS_after_last_bolus_df.loc[
-                                cgm_CGM_WINDOW_HOURS_after_last_bolus_df["mg_dL"].notnull(), "mg_dL"
-                            ].values
-                            for m in [
-                                metrics.glucose.percent_values_lt_40,
-                                metrics.glucose.percent_values_lt_54,
-                                metrics.glucose.percent_values_lt_70,
-                                metrics.glucose.percent_values_ge_70_le_180,
-                                metrics.glucose.percent_values_gt_180,
-                                metrics.glucose.percent_values_gt_250,
-                                metrics.glucose.percent_values_gt_400,
-                            ]:
-                                gap_outcome_df.loc[g, m.__name__] = m(cgm_vals)
-
-                            # calculate risk metrics
-                            lbgi, hbgi, bgri = metrics.glucose.blood_glucose_risk_index(cgm_vals)
-                            gap_outcome_df.loc[g, "lbgi"] = lbgi
-                            gap_outcome_df.loc[g, "hbgi"] = hbgi
-                            gap_outcome_df.loc[g, "bgri"] = bgri
-                            gap_outcome_df.loc[g, "lbgi_risk_score"] = metrics.glucose.lbgi_risk_score(lbgi)
-
-                        # add cgm data to the gap data
-                        gap_with_cgm = (
-                            pd.concat(
-                                [
-                                    gap_df,
-                                    cgm_CGM_WINDOW_HOURS_after_last_bolus_df.rename(
-                                        columns={"rounded_time": "cDateTime"}
-                                    ),
-                                ],
-                                ignore_index=True,
-                            )
-                            .sort_values(["cDateTime", "time"])
-                            .reset_index(drop=True)
-                        )
-
-                        # save each gap
-                        gap_with_cgm.to_csv(
-                            os.path.join("..", "data", "gaps", "{}-gap_{}-size_{}.csv".format(loop_id, g, size_of_gap))
-                        )
-
-                    else:
-                        # in the case with no cgm data, just write the gap data to file
-                        gap_df.to_csv(
-                            os.path.join("..", "data", "gaps", "{}-gap_{}-size_{}.csv".format(loop_id, g, size_of_gap))
-                        )
-
-        gap_outcome_df.to_csv(os.path.join("..", "data", "gap_summary", "{}-gap_summary.csv".format(loop_id)))
+        has_cgm_stats_df.to_csv(os.path.join("..", "data", "has_cgm_summary", "{}-has_cgm_summary.csv".format(loop_id)))
 
     else:
         print("no bolus data, skipping {}, {}".format(loop_id, i))
         data_summary.loc[i, "missing_bolus_data"] = True
 
-data_summary.to_csv(os.path.join("..", "data", "gap_summary.csv"))
+data_summary.to_csv(os.path.join("..", "data", "data_cleaning_summary_has_cgm_analysis.csv"))
+
+# compile results
+all_has_cgm_df = pd.DataFrame()
+all_has_cgm_files = glob.glob(os.path.join("..", "data", "has_cgm_summary", "*.csv"))
+for h in all_has_cgm_files:
+    h_df = pd.read_csv(h, low_memory=True, index_col=[0])
+    all_has_cgm_df = pd.concat([all_has_cgm_df, h_df], ignore_index=True)
+
+    # plot the possilbe open look datasets
+    if "possible_open_loop_episode" in h_df.columns:
+        pos_open_index = h_df[h_df["possible_open_loop_episode"].notnull()].index
+        for p in pos_open_index:
+
+            find_file = glob.glob(
+                os.path.join(
+                    "..",
+                    "data",
+                    "has_cgm",
+                    "*{}-has_cgm_df_{}*".format(h_df.loc[p, "loop_id"], h_df.loc[p, "episode_id"].astype(int)),
+                )
+            )
+
+            open_df = pd.read_csv(find_file[0], index_col=[0])
+            # NEXT ACTION IS TO PLOT OUT THIS EPISODE
+
+
+
+all_has_cgm_df.to_csv(os.path.join("..", "data", "has_cgm_analysis_summary.csv"))
