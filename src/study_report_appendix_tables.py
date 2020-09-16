@@ -15,68 +15,94 @@ code_version = "v0-1-0"
 
 ## BASELINE DEMOGRAPHICS TABLES
 
-#Import the data - may need to update this
+# Import the data - may need to update this
 jaeb_data_location = os.path.join("..", "data", "PHI")
-jaeb_data_file = "phi-cleaned-uniq_set-3hr_hyst-with_survey-2020_09_15_13-v0_1_develop-cfb2713.csv"
+jaeb_data_file = (
+    "phi-cleaned-uniq_set-3hr_hyst-with_survey-2020_09_15_13-v0_1_develop-cfb2713.csv"
+)
 jaeb_datapath = os.path.join(jaeb_data_location, jaeb_data_file)
 jaeb_data_df = pd.read_csv(jaeb_datapath, index_col=[0])
 
+
 def make_baseline_demographics_table(
-    jaeb_df = jaeb_data_df,
-    save_csv_path=os.path.join("..", "reports", "figures")
+    jaeb_df=jaeb_data_df, save_csv_path=os.path.join("..", "reports", "figures")
 ):
 
     for cohort in jaeb_df["PtCohort"].unique():
 
-        #Filter for the particular cohort
-        df = jaeb_df[jaeb_df["PtCohort"]==cohort]
+        # Filter for the particular cohort
+        df = jaeb_df[jaeb_df["PtCohort"] == cohort]
 
-        # Calculate BMI
-        df["BMI"] = round(703*df["weight"] / (df["height_inches"] * df["height_inches"]), 2)
-
-        #Filter out columns needed
-        df = df[["loop_id", "ageAtBaseline", "duration", "BMI", "gender", "race", "ethnicity","a1cBase","months_hypo_events"]]
+        # Filter out columns needed
+        df = df[
+            [
+                "loop_id",
+                "ageAtBaseline",
+                "duration",
+                "bmi_at_baseline",
+                "gender",
+                "race",
+                "ethnicity",
+                "a1cBase",
+                "months_hypo_events",
+            ]
+        ]
 
         # Rename the columns
-        df = df.rename(columns={"loop_id": "Participant ID"
-            ,"ageAtBaseline": "Age (Years)"
-            , "duration": "Diabetes Duration (Years)"
-            , "gender": "Gender"
-            , "race": "Race"
-            , "ethnicity": "Ethnicity"
-            , "hba1c_level": "HbA1c"
-            , "months_hypo_events": "Severe Hypoglycemia Events Reported in 3 Months Prior to Enrollment"                             })
+        df = df.rename(
+            columns={
+                "loop_id": "Participant ID",
+                "ageAtBaseline": "Age (Years)",
+                "duration": "Diabetes Duration (Years)",
+                "bmi_at_baseline": "BMI",
+                "gender": "Gender",
+                "race": "Race",
+                "ethnicity": "Ethnicity",
+                "a1cBase": "HbA1c",
+                "months_hypo_events": "Severe Hypoglycemia Events Reported in 3 Months Prior to Enrollment",
+            }
+        )
 
-        #Race and ethnicity mapping and gender mapping (from codebook)
-        gender_dict = {1: "Male"
-            , 2: "Female"
-            , 3: "Non-Binary"}
-        race_dict = {1: "White"
-            , 2: "Black / African - American"
-            , 3:"Asian"
-            , 4:"Native Hawaiian / Other Pacific Islander"
-            , 5:"American Indian / Alaskan Native"
-            , 6:"Prefer not to answer"
-            , 7:"More than onerace"}
-        ethnicity_dict = {1: "Hispanic or Latino", 2: "Not Hispanic or Latino", 3: "Don not wish to answer"}
+        # Race and ethnicity mapping and gender mapping (from codebook)
+        gender_dict = {1: "Male", 2: "Female", 3: "Non-Binary"}
+        race_dict = {
+            1: "White",
+            2: "Black / African - American",
+            3: "Asian",
+            4: "Native Hawaiian / Other Pacific Islander",
+            5: "American Indian / Alaskan Native",
+            6: "Prefer not to answer",
+            7: "More than onerace",
+        }
+        ethnicity_dict = {
+            1: "Hispanic or Latino",
+            2: "Not Hispanic or Latino",
+            3: "Don not wish to answer",
+        }
 
         df = df.replace({"Race": race_dict})
         df = df.replace({"Ethnicity": ethnicity_dict})
         df = df.replace({"Gender": gender_dict})
 
         df.fillna("", inplace=True)
+        df = df.drop_duplicates()
 
         file_name = "{}-{}_{}_{}".format(
-            "jaeb_data", "cohort_"+str(cohort)+"_baseline_demographics_table", utc_string, code_version
+            "jaeb_data",
+            "cohort_" + str(cohort) + "_baseline_demographics_table",
+            utc_string,
+            code_version,
         )
 
         df.to_csv(os.path.join(save_csv_path, file_name + ".csv"))
 
 
-
-make_baseline_demographics_table(jaeb_df = jaeb_data_df
-                                 , save_csv_path=os.path.join("..", "reports", "figures",
-                                                            "PHI_jaeb_data_tables_nogit"))
+make_baseline_demographics_table(
+    jaeb_df=jaeb_data_df,
+    save_csv_path=os.path.join(
+        "..", "reports", "figures", "PHI_jaeb_data_tables_nogit"
+    ),
+)
 
 
 ## Glycemic Endpoints Files
@@ -143,7 +169,9 @@ def round_time(
 
     # separate the data into chunks if timeBetweenRecords is greater than
     # 2 times the <timeIntervalMinutes> minutes so the rounding process starts over
-    largeGaps = list(df.query("abs(timeBetweenRecords) > " + str(timeIntervalMinutes * 2)).index)
+    largeGaps = list(
+        df.query("abs(timeBetweenRecords) > " + str(timeIntervalMinutes * 2)).index
+    )
     largeGaps.insert(0, 0)
     largeGaps.append(len(df))
 
@@ -158,14 +186,32 @@ def round_time(
 
         # then round to the nearest X Minutes
         # NOTE: the ".000001" ensures that mulitples of 2:30 always rounds up.
-        df.loc[largeGaps[gIndex] : largeGaps[gIndex + 1], "roundedMinutesFromFirstRecord"] = round(
-            (df.loc[largeGaps[gIndex] : largeGaps[gIndex + 1], "minutesFromFirstRecord"] / timeIntervalMinutes)
+        df.loc[
+            largeGaps[gIndex] : largeGaps[gIndex + 1], "roundedMinutesFromFirstRecord"
+        ] = round(
+            (
+                df.loc[
+                    largeGaps[gIndex] : largeGaps[gIndex + 1], "minutesFromFirstRecord"
+                ]
+                / timeIntervalMinutes
+            )
             + 0.000001
-        ) * (timeIntervalMinutes)
+        ) * (
+            timeIntervalMinutes
+        )
 
-        roundedFirstRecord = (firstRecordChunk + pd.Timedelta("1microseconds")).round(str(timeIntervalMinutes) + "min")
-        df.loc[largeGaps[gIndex] : largeGaps[gIndex + 1], roundedTimeFieldName] = roundedFirstRecord + pd.to_timedelta(
-            df.loc[largeGaps[gIndex] : largeGaps[gIndex + 1], "roundedMinutesFromFirstRecord"], unit="m",
+        roundedFirstRecord = (firstRecordChunk + pd.Timedelta("1microseconds")).round(
+            str(timeIntervalMinutes) + "min"
+        )
+        df.loc[largeGaps[gIndex] : largeGaps[gIndex + 1], roundedTimeFieldName] = (
+            roundedFirstRecord
+            + pd.to_timedelta(
+                df.loc[
+                    largeGaps[gIndex] : largeGaps[gIndex + 1],
+                    "roundedMinutesFromFirstRecord",
+                ],
+                unit="m",
+            )
         )
 
     # sort by time and drop fieldsfields
@@ -173,7 +219,12 @@ def round_time(
     df.reset_index(drop=True, inplace=True)
     if verbose is False:
         df.drop(
-            columns=["timeBetweenRecords", "minutesFromFirstRecord", "roundedMinutesFromFirstRecord"], inplace=True,
+            columns=[
+                "timeBetweenRecords",
+                "minutesFromFirstRecord",
+                "roundedMinutesFromFirstRecord",
+            ],
+            inplace=True,
         )
 
     df[roundedTimeFieldName] = df[roundedTimeFieldName].astype("datetime64")
@@ -183,7 +234,9 @@ def round_time(
 
 def add_uploadDateTime(df):
     if "upload" in df.type.unique():
-        uploadTimes = pd.DataFrame(df[df.type == "upload"].groupby("uploadId").time.describe()["top"])
+        uploadTimes = pd.DataFrame(
+            df[df.type == "upload"].groupby("uploadId").time.describe()["top"]
+        )
     else:
         uploadTimes = pd.DataFrame(columns=["top"])
     # if an upload does not have an upload date, then add one
@@ -234,7 +287,9 @@ def removeCgmDuplicates(df, timeCriterion):
         )
         dfIsNull = df[df[timeCriterion].isnull()]
         dfNotNull = df[df[timeCriterion].notnull()]
-        dfNotNull, nDuplicatesRemoved = removeDuplicates(dfNotNull, [timeCriterion, "value"])
+        dfNotNull, nDuplicatesRemoved = removeDuplicates(
+            dfNotNull, [timeCriterion, "value"]
+        )
         df = pd.concat([dfIsNull, dfNotNull])
         df.sort_values(
             by=[timeCriterion, "uploadTime"], ascending=[False, False], inplace=True,
@@ -247,6 +302,7 @@ def removeCgmDuplicates(df, timeCriterion):
 
 def mmolL_to_mgdL(mmolL):
     return mmolL * MGDL_PER_MMOLL
+
 
 # %% START OF CODE
 CGM_WINDOW_HOURS = 4
@@ -279,23 +335,20 @@ f_start = 0
 f_end = len(sorted_jos_files)
 
 
-#Create data frame to store tables in
-column_names = ["Participant ID/nAge/nBMI"
-    , "Exposure (Time in Study)"
-    , "Time in Range (70-180 mg/dL)"
-    , "HbA1c"
-    , "Time <70"
-    , "Time <54""
-#Exposure (Time in Study)
-#Time in Range (70-180 mg/dL)
-#HbA1c
-#Time <70
-#Time <54
-#Time >180
-#Mean Glucose
+# Create data frame to store tables in
+column_names = [
+    "Participant ID/nAge/nBMI",
+    "Exposure (Time in Study)",
+    "Time in Range (70-180 mg/dL)",
+    "HbA1c",
+    "Time <70",
+    "Time <54",
+    "Time >180",
+    "Mean Glucose",
 ]
-cohort_a_df = pd.DataFrame(columns = column_names)
-cohort_b_df = pd.DataFrame(columns = column_names)
+
+cohort_a_df = pd.DataFrame(columns=column_names)
+cohort_b_df = pd.DataFrame(columns=column_names)
 
 
 for i in range(f_start, f_end):
@@ -303,8 +356,12 @@ for i in range(f_start, f_end):
     loop_id = f[-12:-3]
 
     data_summary.loc[i, "loop_id"] = loop_id
-    study_start_date = survey_and_study_df.loc[survey_and_study_df["loop_id"] == loop_id, "start_date"].min()
-    study_end_date = survey_and_study_df.loc[survey_and_study_df["loop_id"] == loop_id, "end_date"].max()
+    study_start_date = survey_and_study_df.loc[
+        survey_and_study_df["loop_id"] == loop_id, "start_date"
+    ].min()
+    study_end_date = survey_and_study_df.loc[
+        survey_and_study_df["loop_id"] == loop_id, "end_date"
+    ].max()
 
     if pd.isnull(study_start_date):
         data_summary.loc[i, "missing_issue_report"] = True
@@ -315,7 +372,9 @@ for i in range(f_start, f_end):
         data_summary.loc[i, "study_end_date"] = study_end_date
 
     # load in all of the subject's data
-    temp_all_df = pd.read_csv(f, sep="\t", compression="gzip", low_memory=False, index_col=[0])
+    temp_all_df = pd.read_csv(
+        f, sep="\t", compression="gzip", low_memory=False, index_col=[0]
+    )
     temp_all_df.drop(columns="column_combination", inplace=True)
 
     print("starting to process {}, {}".format(loop_id, i))
@@ -362,16 +421,24 @@ for i in range(f_start, f_end):
     )
 
     # get rid of duplicates that have the same ["deviceTime", "value"]
-    cgmData, nCgmDuplicatesRemovedDeviceTime = removeCgmDuplicates(cgmData, "deviceTime")
-    data_summary.loc[i, "nCgmDuplicatesRemovedDeviceTime"] = nCgmDuplicatesRemovedDeviceTime
+    cgmData, nCgmDuplicatesRemovedDeviceTime = removeCgmDuplicates(
+        cgmData, "deviceTime"
+    )
+    data_summary.loc[
+        i, "nCgmDuplicatesRemovedDeviceTime"
+    ] = nCgmDuplicatesRemovedDeviceTime
 
     # get rid of duplicates that have the same ["time", "value"]
     cgmData, nCgmDuplicatesRemovedUtcTime = removeCgmDuplicates(cgmData, "time")
     data_summary.loc[i, "cnCgmDuplicatesRemovedUtcTime"] = nCgmDuplicatesRemovedUtcTime
 
     # get rid of duplicates that have the same "roundedTime"
-    cgmData, nCgmDuplicatesRemovedRoundedTime = removeDuplicates(cgmData, "rounded_time")
-    data_summary.loc[i, "nCgmDuplicatesRemovedRoundedTime"] = nCgmDuplicatesRemovedRoundedTime
+    cgmData, nCgmDuplicatesRemovedRoundedTime = removeDuplicates(
+        cgmData, "rounded_time"
+    )
+    data_summary.loc[
+        i, "nCgmDuplicatesRemovedRoundedTime"
+    ] = nCgmDuplicatesRemovedRoundedTime
 
     # get start and end times
     cgmBeginDate, cgmEndDate = getStartAndEndTimes(cgmData, "rounded_time")
@@ -383,7 +450,9 @@ for i in range(f_start, f_end):
 
     # create a contiguous time series
     timeIntervalMinutes = 5
-    rng = pd.date_range(cgmBeginDate, cgmEndDate, freq="{}min".format(timeIntervalMinutes))
+    rng = pd.date_range(
+        cgmBeginDate, cgmEndDate, freq="{}min".format(timeIntervalMinutes)
+    )
     contiguousData = pd.DataFrame(rng, columns=["cDateTime"])
 
     # merge data
@@ -395,10 +464,9 @@ for i in range(f_start, f_end):
         how="left",
     )
 
-
     print(contig_df)
 
-
+    """
     values = get_glycemic_endpoints_data(contig_df)
     individual_participant_df = pd.DataFrame(values, columns=column_names)
 
@@ -407,19 +475,16 @@ for i in range(f_start, f_end):
     elif cohort = B:
         cohort_b_df = cohort_b_df.append(individual_participant_df, ignore_index=True)
 
-    # make a row for this particular individual
+    """
 
-    #So my understanding here is that contig_df is the time series
-    #joined to the loop id etc, so can probably just use the metrics toolkit
-    #to
 
 def get_glycemic_endpoints_data(df):
-    #Participant, ID, Age, BMI
-    #Exposure (Time in Study)
-    #Time in Range (70-180 mg/dL)
-    #HbA1c
-    #Time <70
-    #Time <54
-    #Time >180
-    #Mean Glucose
-
+    # Participant, ID, Age, BMI
+    # Exposure (Time in Study)
+    # Time in Range (70-180 mg/dL)
+    # HbA1c
+    # Time <70
+    # Time <54
+    # Time >180
+    # Mean Glucose
+    return
