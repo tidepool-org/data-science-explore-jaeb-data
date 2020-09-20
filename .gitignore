@@ -99,3 +99,11 @@ venv.bak/
 .spyderproject
 .spyproject
 
+
+data/
+
+.vscode/.ropeproject/config.py
+
+.vscode/.ropeproject/objectdb
+
+results/
