@@ -103,3 +103,7 @@ venv.bak/
 data/old-data/
 
 data/
+
+results/
+
+.vscode/.ropeproject/
