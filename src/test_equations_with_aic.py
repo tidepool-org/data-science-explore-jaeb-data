@@ -35,9 +35,19 @@ def jaeb_icr_equation(tdd, carbs):
 def traditional_icr_equation(tdd):
     return 500 / tdd
 
+# Keys for working with Jaeb exports
+tdd_key = "total_daily_dose_avg"
+basal_key = "total_daily_basal_insulin_avg"  # Total daily basal
+carb_key = "total_daily_carb_avg"  # Total daily CHO
+bmi_key = "bmi_at_baseline"
+bmi_percentile = "bmi_perc_at_baseline"
+isf_key = "isf"
+icr_key = "carb_ratio"
+age_key = "age_at_baseline"
+tir_key = "percent_70_180_2week"
 
 df = df[
-    (df.basal_total_daily_geomean > 1)
+    (df[basal_key] > 1)
     # Normal weight
     # & (df.bmi < 25)
     # & (df.bmi > 10)
@@ -46,19 +56,9 @@ df = df[
     # & (df.bmi < 30)
 ]
 
-# Keys for working with Jason's exports
-tdd_key = "insulin_total_daily_geomean"
-basal_key = "scheduled_basal_total_daily_insulin_expected"
-carb_key = "carbs_total_daily_geomean"
-bmi_key = "bmi"
-isf_key = "insulin_weighted_isf"
-icr_key = "carb_weighted_carb_ratio"
-age_key = "ageAtBaseline"
-
 """ Basal Analysis """
 df["jaeb_predicted_basals"] = df.apply(lambda x: jaeb_basal_equation(x[tdd_key], x[carb_key]), axis=1)
 df["traditional_predicted_basals"] = df.apply(lambda x: traditional_basal_equation(x[tdd_key]), axis=1)
-df.dropna(subset=["jaeb_predicted_basals", "traditional_predicted_basals"])
 
 df["jaeb_basal_residual"] = df[basal_key] - df["jaeb_predicted_basals"]
 df["traditional_basal_residual"] = df[basal_key] - df["traditional_predicted_basals"]
@@ -76,6 +76,7 @@ print()
 """ ISF Analysis """
 df["jaeb_predicted_isf"] = df.apply(lambda x: jaeb_isf_equation(x[tdd_key], x[bmi_key]), axis=1)
 df["traditional_predicted_isf"] = df.apply(lambda x: traditional_isf_equation(x[tdd_key]), axis=1)
+df = df.dropna(subset=["jaeb_predicted_isf", "traditional_predicted_isf"])
 
 df["jaeb_isf_residual"] = df[isf_key] - df["jaeb_predicted_isf"]
 df["traditional_isf_residual"] = df[isf_key] - df["traditional_predicted_isf"]
