@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics import mean_squared_error
 from math import sqrt
+import os
+from pathlib import Path
 
 
 def rmse(y, y_predict):
@@ -109,3 +111,25 @@ def two_dimension_plot(x, y, labels=["", ""], title="", ylim=None):
 
     plt.title(title, fontsize=30)
     plt.show()
+
+def find_full_path(resource_name, extension):
+    """ Find file path, given name and extension
+        example: "/home/pi/Media/tidepool_demo.json"
+
+        This will return the *first* instance of the file
+
+    Arguments:
+    resource_name -- name of file without the extension
+    extension -- ending of file (ex: ".json")
+
+    Output:
+    path to file
+    """
+    search_dir = Path(__file__).parent.parent
+    for root, dirs, files in os.walk(search_dir):  # pylint: disable=W0612
+        for name in files:
+            (base, ext) = os.path.splitext(name)
+            if base == resource_name and extension == ext:
+                return os.path.join(root, name)
+
+    raise Exception("No file found for specified resource name & extension")
