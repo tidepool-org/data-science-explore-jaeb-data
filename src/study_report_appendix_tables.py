@@ -16,12 +16,13 @@ code_version = "v0-1-0"
 ## BASELINE DEMOGRAPHICS TABLES
 
 # Import the data - may need to update this
-jaeb_data_location = os.path.join("data-science-explore-jaeb-data","data", "PHI")
+jaeb_data_location = os.path.join("data-science-explore-jaeb-data", "data", "PHI")
 jaeb_data_file = (
     "PHI Tidepool Survey Data 08-19-2020-cleaned-2020_09_15_13-v0_1_develop-cfb2713.csv"
 )
-jaeb_datapath = "/Users/anneevered/Desktop/Tidepool 2020/Tidepool Repositories/data-science-explore-jaeb-data/data/PHI/PHI Tidepool Survey Data 08-19-2020-cleaned-2020_09_15_13-v0_1_develop-cfb2713.csv"
+jaeb_datapath = os.path.join(jaeb_data_location, jaeb_data_file)
 jaeb_data_df = pd.read_csv(jaeb_datapath, index_col=[0])
+
 
 def make_baseline_demographics_table(
     jaeb_df=jaeb_data_df, save_csv_path=os.path.join("..", "reports", "figures")
@@ -32,13 +33,20 @@ def make_baseline_demographics_table(
         # Filter for the particular cohort
         df = jaeb_df[jaeb_df["PtCohort"] == cohort]
 
-        df["height_total_inches"] = 12*df["height_feet"]+df["height_inches"]
-        df["BMI"] = round(df["weight"]/(df["height_total_inches"]*df["height_total_inches"])*703, 2)
+        df["height_total_inches"] = 12 * df["height_feet"] + df["height_inches"]
+        df["BMI"] = round(
+            df["weight"]
+            / (df["height_total_inches"] * df["height_total_inches"])
+            * 703,
+            2,
+        )
         df["HbA1c"] = df["a1cBase"].fillna(df["hba1c_level"])
 
         # Filter out columns needed
-        df = df.loc[:,
-             ("loop_id",
+        df = df.loc[
+            :,
+            (
+                "loop_id",
                 "ageAtBaseline",
                 "duration",
                 "BMI",
@@ -47,7 +55,7 @@ def make_baseline_demographics_table(
                 "ethnicity",
                 "HbA1c",
                 "months_hypo_events",
-             )
+            ),
         ]
 
         # Rename the columns
@@ -88,7 +96,7 @@ def make_baseline_demographics_table(
         df = df.drop_duplicates()
 
         file_name = "{}-{}_{}_{}".format(
-            "jaeb_data",
+            "phi_jaeb_data",
             "cohort_" + str(cohort) + "_baseline_demographics_table",
             utc_string,
             code_version,
