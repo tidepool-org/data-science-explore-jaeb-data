@@ -67,20 +67,25 @@ below_54 = "percent_below_54_2week"
 percent_70_180 = "percent_70_180_2week"
 days_insulin = "days_with_insulin"
 
-# Filter for aspirational
+# Filter to make sure basals are reasonable
 df = df[
     (df[basal_key] > 1)
-    # Normal weight
-    & (df[bmi_key] < 25)
-    & (df[bmi_key] >= 18.5)
-    # Enough data to evaluate
-    & (df[percent_cgm_available] >= 90)
-    & (df[days_insulin] >= 14)
-    # Good CGM distributions
-    & (df[below_40] == 0)
-    & (df[below_54] < 1)
-    & (df[percent_70_180] >= 70)
 ]
+
+# Filter for aspirational
+# df = df[
+#     (df[basal_key] > 1)
+#     # Normal weight
+#     & (df[bmi_key] < 25)
+#     & (df[bmi_key] >= 18.5)
+#     # Enough data to evaluate
+#     & (df[percent_cgm_available] >= 90)
+#     & (df[days_insulin] >= 14)
+#     # Good CGM distributions
+#     & (df[below_40] == 0)
+#     & (df[below_54] < 1)
+#     & (df[percent_70_180] >= 70)
+# ]
 
 # Non-Aspirational
 # df = df[
