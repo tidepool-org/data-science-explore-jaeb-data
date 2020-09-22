@@ -1,5 +1,6 @@
 import pandas as pd
 from scipy import stats
+import numpy as np
 import utils
 
 carb_key = "total_daily_carb_avg"  # Total daily CHO
@@ -12,7 +13,12 @@ t1d_exchange = pd.read_csv(t1d_exchange_path)
 jaeb_path = utils.find_full_path("PHI-unique-settings-with-3hr-hysteresis-from-all-data-five-minute-8hr-outcomes-2020-08-19-23-v0-1-0-ed", ".csv")
 jaeb = pd.read_csv(jaeb_path)
 
-print("Carbs:\n", stats.ks_2samp(t1d_exchange[carb_key], jaeb[carb_key]))
-print("ISF:\n", stats.ks_2samp(t1d_exchange[t1d_isf_key], jaeb[jaeb_isf_key]))
+isf = jaeb[jaeb_isf_key].replace(0, np.nan).dropna()
+log_isf = np.log(isf)
+statistic, p_value = stats.kstest(log_isf, 'norm')
+print(statistic, p_value)
+
+k, p_2 = stats.normaltest(log_isf)
+print(k, p_2)
 
 
