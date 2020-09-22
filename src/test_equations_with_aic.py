@@ -46,15 +46,41 @@ icr_key = "carb_ratio"
 age_key = "age_at_baseline"
 tir_key = "percent_70_180_2week"
 
+percent_cgm_available = "percent_cgm_available_2week"
+below_40 = "percent_below_40_2week"
+below_54 = "percent_below_54_2week"
+percent_70_180 = "percent_70_180_2week"
+days_insulin = "days_with_insulin"
+
+# Filter for aspirational
 df = df[
     (df[basal_key] > 1)
     # Normal weight
-    # & (df.bmi < 25)
-    # & (df.bmi > 10)
-    # Overweight
-    # & (df.bmi > 25)
-    # & (df.bmi < 30)
+    & (df[bmi_key] < 25)
+    & (df[bmi_key] >= 18.5)
+    # Enough data to evaluate
+    & (df[percent_cgm_available] >= 90)
+    & (df[days_insulin] >= 14)
+    # Good CGM distributions
+    & (df[below_40] == 0)
+    & (df[below_54] < 1)
+    & (df[percent_70_180] >= 70)
 ]
+
+# Non-Aspirational
+# df = df[
+#     (df[basal_key] > 1)
+#     # Normal weight
+#     | (df[bmi_key] >= 25)
+#     | (df[bmi_key] < 18.5)
+#     # Enough data to evaluate
+#     | (df[percent_cgm_available] >= 90)
+#     | (df[days_insulin] >= 14)
+#     # Good CGM distributions
+#     | (df[below_40] != 0)
+#     | (df[below_54] >= 1)
+#     | (df[percent_70_180] <= 70)
+# ]
 
 """ Basal Analysis """
 df["jaeb_predicted_basals"] = df.apply(lambda x: jaeb_basal_equation(x[tdd_key], x[carb_key]), axis=1)
@@ -101,7 +127,6 @@ df["traditional_icr_residual"] = df[icr_key] - df["traditional_predicted_icr"]
 
 jaeb_icr_sum_squared_errors = sum(df["jaeb_icr_residual"]**2)
 traditional_icr_sum_squared_errors = sum(df["traditional_icr_residual"]**2)
-print(jaeb_icr_sum_squared_errors, traditional_icr_sum_squared_errors)
 
 jaeb_icr_aic = aic(2, jaeb_icr_sum_squared_errors)
 traditional_icr_aic = aic(1, traditional_icr_sum_squared_errors)
