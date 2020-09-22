@@ -10,9 +10,31 @@ def filter_df_by_demographic(df, demographic):
     elif demographic == DemographicSelection.ADULT:
         return df[df[age_key] >= 18]
     elif demographic == DemographicSelection.ASPIRATIONAL:
-        raise Exception("Not implemented yet")
+        return df[
+            # Normal weight
+            (df[bmi_key] < 25)
+            & (df[bmi_key] >= 18.5)
+            # Enough data to evaluate
+            & (df[percent_cgm_available] >= 90)
+            & (df[days_insulin] >= 14)
+            # Good CGM distributions
+            & (df[below_40] == 0)
+            & (df[below_54] < 1)
+            & (df[percent_70_180] >= 70)
+        ]
     elif demographic == DemographicSelection.NON_ASPIRATIONAL:
-        raise Exception("Not implemented yet")
+        return df[
+            # Normal weight
+            (df[bmi_key] >= 25)
+            | (df[bmi_key] < 18.5)
+            # Enough data to evaluate
+            | (df[percent_cgm_available] >= 90)
+            | (df[days_insulin] >= 14)
+            # Good CGM distributions
+            | (df[below_40] != 0)
+            | (df[below_54] >= 1)
+            | (df[percent_70_180] <= 70)
+        ]
 
     # Don't do anything if it's 'overall'
     return df
@@ -21,7 +43,14 @@ data_path = utils.find_full_path("PHI-unique-settings-with-3hr-hysteresis-from-a
 data = pd.read_csv(data_path)
 
 age_key = "age_at_baseline"
-demographics_to_get = DemographicSelection.ADULT
+percent_cgm_available = "percent_cgm_available_2week"
+below_40 = "percent_below_40_2week"
+below_54 = "percent_below_54_2week"
+percent_70_180 = "percent_70_180_2week"
+days_insulin = "days_with_insulin"
+bmi_key = "bmi_at_baseline"
+
+demographics_to_get = DemographicSelection.ASPIRATIONAL
 
 data = filter_df_by_demographic(data, demographics_to_get)
 data.to_csv(

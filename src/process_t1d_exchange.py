@@ -11,10 +11,9 @@ def filter_df_by_demographic(df, demographic):
     elif demographic == DemographicSelection.ADULT:
         return df[df[age_key] >= 18]
     elif demographic == DemographicSelection.ASPIRATIONAL:
-        raise Exception("Not implemented yet")
+        raise Exception("Not implemented due to lack of needed data features")
     elif demographic == DemographicSelection.NON_ASPIRATIONAL:
-        raise Exception("Not implemented yet")
-
+        raise Exception("Not implemented due to lack of needed data features")
     # Don't do anything if it's 'overall'
     return df
 
