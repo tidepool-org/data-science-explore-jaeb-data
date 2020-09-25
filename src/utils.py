@@ -1,10 +1,13 @@
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics import mean_squared_error
-from math import sqrt
+import math
 import os
 from pathlib import Path
+import subprocess
+import datetime as dt
 
 
 def rmse(y, y_predict):
@@ -112,6 +115,42 @@ def two_dimension_plot(x, y, labels=["", ""], title="", ylim=None):
     plt.title(title, fontsize=30)
     plt.show()
 
+
+def aic(k, sum_squared_errors):
+    """ Compute AIC based on sum of squared errors & k """
+    return 2 * k - 2 * np.log(sum_squared_errors)
+
+
+def jaeb_basal_equation(tdd, carbs):
+    """ Basal equation fitted from Jaeb data """
+    return 0.6507 * tdd * math.exp(-0.001498 * carbs)
+
+
+def traditional_basal_equation(tdd):
+    """ Traditional basal equation """
+    return 0.5 * tdd
+
+
+def jaeb_isf_equation(tdd, bmi):
+    """ ISF equation fitted from Jaeb data """
+    return 40250 / (tdd * bmi)
+
+
+def traditional_isf_equation(tdd):
+    """ Traditional ISF equation """
+    return 1500 / tdd
+
+
+def jaeb_icr_equation(tdd, carbs):
+    """ ICR equation fitted from Jaeb data """
+    return (1.31 * carbs + 136.3) / tdd
+
+
+def traditional_icr_equation(tdd):
+    """ Traditional ICR equation """
+    return 500 / tdd
+
+
 def find_full_path(resource_name, extension):
     """ Find file path, given name and extension
         example: "/home/pi/Media/tidepool_demo.json"
@@ -133,3 +172,63 @@ def find_full_path(resource_name, extension):
                 return os.path.join(root, name)
 
     raise Exception("No file found for specified resource name & extension")
+
+
+def get_file_stamps():
+    """
+    Get context for information generated at runtime.
+    """
+    current_commit = (
+        subprocess.check_output(["git", "describe", "--always"]).strip().decode("utf-8")
+    )
+    utc_string = dt.datetime.utcnow().strftime("%Y_%m_%d_%H")
+    code_description = "v0_1"
+    date_version_name = "{}-{}-{}".format(utc_string, code_description, current_commit)
+
+    return date_version_name, utc_string, code_description, current_commit
+
+
+def make_dir_if_it_doesnt_exist(dir_):
+    if not os.path.isdir(dir_):
+        os.makedirs(dir_)
+
+
+def get_save_path(
+    dataset_name, full_analysis_name, report_type="figures", root_dir="results"
+):
+    output_path = os.path.join("..", root_dir, dataset_name)
+    date_version_name, _, _, _ = get_file_stamps()
+    save_path = os.path.join(
+        output_path, "{}-{}".format(full_analysis_name, date_version_name), report_type
+    )
+
+    make_dir_if_it_doesnt_exist(save_path)
+
+    return save_path
+
+
+def get_save_path_with_file(
+    dataset_name,
+    full_analysis_name,
+    file_name,
+    report_type="figures",
+    root_dir="results",
+):
+    return os.path.join(
+        get_save_path(dataset_name, full_analysis_name, report_type, root_dir),
+        file_name,
+    )
+
+
+def get_demographic_export_path(demographic, dataset, analysis_name):
+    """ Get file path for export of filtered demographic datasets """
+    assert isinstance(demographic, DemographicSelection)
+    file_name = demographic.name.lower() + "_" + dataset + ".csv"
+    return get_save_path_with_file(dataset, analysis_name, file_name, "data-processing")
+
+
+def get_figure_export_path(dataset, plot_title, analysis_name):
+    """ Get file path for export of filtered demographic datasets """
+    short_dataset = dataset[:20] if len(dataset) >= 20 else dataset
+    file_name = plot_title + "_" + short_dataset + ".png"
+    return get_save_path_with_file(dataset, analysis_name, file_name, "plots")

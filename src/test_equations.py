@@ -1,12 +1,17 @@
 import pandas as pd
 import utils
 
-
-data_path = utils.find_full_path(
-    "phi-uniq_set-3hr_hyst-2020_08_29_23-v0_1_develop-12c5af2", ".csv"
-)
+input_file_name = "phi-uniq_set-3hr_hyst-2020_08_29_23-v0_1_develop-12c5af2"
+data_path = utils.find_full_path(input_file_name, ".csv")
 df = pd.read_csv(data_path)
-result_cols = ["jaeb_aic", "traditional_aic", "jaeb_rmse", "traditional_rmse", "jaeb_sse", "traditional_sse"]
+result_cols = [
+    "jaeb_aic",
+    "traditional_aic",
+    "jaeb_rmse",
+    "traditional_rmse",
+    "jaeb_sse",
+    "traditional_sse",
+]
 output_df = pd.DataFrame(columns=result_cols)
 analysis_name = "evaluate-equations"
 
@@ -29,9 +34,7 @@ percent_70_180 = "percent_70_180_2week"
 days_insulin = "days_with_insulin"
 
 # Filter to make sure basals are reasonable
-df = df[
-    (df[basal_key] > 1)
-]
+df = df[(df[basal_key] > 1)]
 
 # Filter for aspirational
 # df = df[
@@ -80,15 +83,14 @@ traditional_basal_sum_squared_errors = sum(df["traditional_basal_residual"] ** 2
 jaeb_basal_aic = utils.aic(2, jaeb_basal_sum_squared_errors)
 traditional_basal_aic = utils.aic(1, traditional_basal_sum_squared_errors)
 
-print("Basal: Jaeb", jaeb_basal_aic, "Traditional", traditional_basal_aic)
-print("Jaeb - Traditional:", jaeb_basal_aic - traditional_basal_aic)
-print(
-    "RMSE: Jaeb", 
+output_df.loc["Basal"] = [
+    jaeb_basal_aic,
+    traditional_basal_aic,
     (jaeb_basal_sum_squared_errors / df.shape[0]) ** 0.5,
-    "Traditional", 
-    (traditional_basal_sum_squared_errors / df.shape[0]) ** 0.5
-)
-print()
+    (traditional_basal_sum_squared_errors / df.shape[0]) ** 0.5,
+    jaeb_basal_sum_squared_errors,
+    traditional_basal_sum_squared_errors,
+]
 
 """ ISF Analysis """
 df["jaeb_predicted_isf"] = df.apply(
@@ -108,16 +110,14 @@ traditional_isf_sum_squared_errors = sum(df["traditional_isf_residual"] ** 2)
 jaeb_isf_aic = utils.aic(2, jaeb_isf_sum_squared_errors)
 traditional_isf_aic = utils.aic(1, traditional_isf_sum_squared_errors)
 
-print("ISF: Jaeb", jaeb_isf_aic, "Traditional", traditional_isf_aic)
-print("Jaeb - Traditional:", jaeb_isf_aic - traditional_isf_aic)
-print(
-    "RMSE: Jaeb", 
+output_df.loc["ISF"] = [
+    jaeb_isf_aic,
+    traditional_isf_aic,
     (jaeb_isf_sum_squared_errors / df.shape[0]) ** 0.5,
-    "Traditional", 
-    (traditional_isf_sum_squared_errors / df.shape[0]) ** 0.5
-)
-print()
-
+    (traditional_isf_sum_squared_errors / df.shape[0]) ** 0.5,
+    jaeb_isf_sum_squared_errors,
+    traditional_isf_sum_squared_errors,
+]
 
 """ ICR Analysis """
 df["jaeb_predicted_icr"] = df.apply(
@@ -136,11 +136,25 @@ traditional_icr_sum_squared_errors = sum(df["traditional_icr_residual"] ** 2)
 jaeb_icr_aic = utils.aic(2, jaeb_icr_sum_squared_errors)
 traditional_icr_aic = utils.aic(1, traditional_icr_sum_squared_errors)
 
-print("ICR: Jaeb", jaeb_icr_aic, "Traditional", traditional_icr_aic)
-print("Jaeb - Traditional:", jaeb_icr_aic - traditional_icr_aic)
-print(
-    "RMSE: Jaeb", 
+output_df.loc["ICR"] = [
+    jaeb_icr_aic,
+    traditional_icr_aic,
     (jaeb_icr_sum_squared_errors / df.shape[0]) ** 0.5,
-    "Traditional", 
-    (traditional_icr_sum_squared_errors / df.shape[0]) ** 0.5
+    (traditional_icr_sum_squared_errors / df.shape[0]) ** 0.5,
+    jaeb_icr_sum_squared_errors,
+    traditional_icr_sum_squared_errors,
+]
+
+output_df.to_csv(
+    utils.get_save_path_with_file(
+        input_file_name, analysis_name, "equation_errors.csv", "data-processing"
+    )
+)
+df.to_csv(
+    utils.get_save_path_with_file(
+        input_file_name,
+        analysis_name,
+        "data_with_equation_predictions.csv",
+        "data-processing",
+    )
 )
