@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from pathlib import Path
 from enum import Enum
+import subprocess
+import datetime as dt
 
 
 class DemographicSelection(Enum):
@@ -90,7 +92,7 @@ def box_plot(
 
     if should_export:
         file_name = title + ".png"
-        plt.savefig(export_path(file_name, ["results", "figures"]))
+        plt.savefig(get_save_path(file_name, ["results", "figures"]))
     else:
         plt.show()
 
@@ -142,7 +144,7 @@ def plot_by_frequency(
         plt.xlim(x_lim[0], x_lim[1])
     if should_export:
         file_name = title + ".png" if len(title) else column_key + ".png"
-        plt.savefig(export_path(file_name, ["results", "figures"]))
+        plt.savefig(get_save_path(file_name, ["results", "figures"]))
         plt.clf()
     else:
         plt.show()
@@ -180,17 +182,64 @@ def find_full_path(resource_name, extension):
     raise Exception("No file found for specified resource name & extension")
 
 
-def export_path(file_name, dir_name=["results"]):
+def get_file_stamps():
     """
-    file_name: file name with extension
-    dir_name: list with desired directories to add to parent path, in order
+    Get context for information generated at runtime.
     """
-    return os.path.join(Path(__file__).parent.parent, *dir_name, file_name)
+    current_commit = (
+        subprocess.check_output(["git", "describe", "--always"]).strip().decode("utf-8")
+    )
+    utc_string = dt.datetime.utcnow().strftime("%Y_%m_%d_%H")
+    code_description = "v0_1"
+    date_version_name = "{}-{}-{}".format(utc_string, code_description, current_commit)
+
+    return date_version_name, utc_string, code_description, current_commit
 
 
-def get_demographic_export_path(demographic, base_file_name):
-    """ Get file path for export with the file name reflecting a particular demographic """
+def make_dir_if_it_doesnt_exist(dir_):
+    if not os.path.isdir(dir_):
+        os.makedirs(dir_)
+
+
+def get_save_path(
+    dataset_name, full_analysis_name, report_type="figures", root_dir="reports"
+):
+    output_path = os.path.join("..", "..", root_dir, dataset_name)
+    date_version_name, _, _, _ = get_file_stamps()
+    save_path = os.path.join(
+        output_path, "{}-{}".format(full_analysis_name, date_version_name), report_type
+    )
+
+    make_dir_if_it_doesnt_exist(save_path)
+
+    return save_path
+
+
+def get_save_path_with_file(
+    dataset_name,
+    full_analysis_name,
+    file_name,
+    report_type="figures",
+    root_dir="reports",
+):
+    return os.path.join(
+        get_save_path(dataset_name, full_analysis_name, report_type, root_dir),
+        file_name,
+    )
+
+
+def save_df(df_results, analysis_name, save_dir, save_type="tsv"):
+    utc_string = dt.datetime.utcnow().strftime("%Y_%m_%d_%H_%M_%S")
+    filename = "{}-created_{}".format(analysis_name, utc_string)
+    path = os.path.join(save_dir, filename)
+    if "tsv" in save_type:
+        df_results.to_csv("{}.tsv".format(path), sep="\t")
+    else:
+        df_results.to_csv("{}.csv".format(path))
+
+
+def get_demographic_export_path(demographic, dataset, analysis_name):
+    """ Get file path for export of filtered demographic datasets """
     assert isinstance(demographic, DemographicSelection)
-    return export_path(demographic.name.lower() + "_" + base_file_name + ".csv")
-
-
+    file_name = demographic.name.lower() + ".csv"
+    return get_save_path_with_file(dataset, analysis_name, file_name, "data-processing")
