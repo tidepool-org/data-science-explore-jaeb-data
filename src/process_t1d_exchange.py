@@ -25,6 +25,7 @@ demographics_path = utils.find_full_path("HScreening", ".csv")
 icr_isf_df = pd.read_csv(isf_icr_path)
 age_df = pd.read_csv(age_path)
 demographics_df = pd.read_csv(demographics_path)
+analysis_name = "analyze-demographics"
 
 # Keys for working with exports
 """ T1D Exchange """
@@ -56,5 +57,5 @@ relevant_data[bmi_key] = demographics_df[[height_key, weight_key]].apply(
 relevant_data = filter_df_by_demographic(relevant_data, demographics_to_get)
 
 relevant_data.to_csv(
-    utils.get_demographic_export_path(demographics_to_get, "t1d_exchange")
+    utils.get_demographic_export_path(demographics_to_get, "t1d_exchange", analysis_name)
 )

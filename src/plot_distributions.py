@@ -4,19 +4,22 @@ import numpy as np
 import utils
 import math
 
-data_path = utils.find_full_path("PHI-unique-settings-with-3hr-hysteresis-from-all-data-five-minute-8hr-outcomes-2020-08-19-23-v0-1-0-ed", ".csv")
-# data_path = utils.find_full_path("t1d_exchange", ".csv")
+file_name = "adult_jaeb"
+# file_name = "pediatric_t1d_exchange"
+data_path = utils.find_full_path(file_name, ".csv",)
 df = pd.read_csv(data_path)
 
+analysis_name = "analyze-demographics"
+
 """ Keys for working with Jaeb exports """
-# tdd_key = "total_daily_dose_avg"
-# basal_key = "total_daily_basal_insulin_avg"  # Total daily basal
-# carb_key = "total_daily_carb_avg"  # Total daily CHO
-# bmi_key = "bmi_at_baseline"
-# bmi_percentile = "bmi_perc_at_baseline"
-# isf_key = "isf"
-# icr_key = "carb_ratio"
-# tir_key = "percent_70_180_2week"
+tdd_key = "total_daily_dose_avg"
+basal_key = "total_daily_basal_insulin_avg"  # Total daily basal
+carb_key = "total_daily_carb_avg"  # Total daily CHO
+bmi_key = "bmi_at_baseline"
+bmi_percentile = "bmi_perc_at_baseline"
+isf_key = "isf"
+icr_key = "carb_ratio"
+tir_key = "percent_70_180_2week"
 
 """ Keys for working with T1D exchange exports """
 # tdd_key = None  # "total_daily_dose_avg" TODO once Jaeb publishes basal data
@@ -33,24 +36,60 @@ df = pd.read_csv(data_path)
 # utils.box_plot(bmi_boxplot_data, bmi_ticks, ["BMI", "TIR"], "TIR vs BMI: Overall")
 
 """ TDD """
-# log_tdd_key = "log_" + tdd_key
-# # Avoid divide by zero error
-# df[tdd_key] = df[tdd_key].replace(0, 1)
-# df[log_tdd_key] = np.log(df[tdd_key])
-# df = df[df[log_tdd_key] > -np.inf]
-# # utils.box_plot(df[tdd_key], data_axis_labels=["TDD", ""], title="TDD Distribution: Overall")
-# # utils.box_plot(df["log_" + tdd_key], data_axis_labels=["Log TDD", ""], title="Log TDD Distribution: Overall")
-# utils.plot_by_frequency(df, tdd_key, title="TDD", x_axis_label="TDD (U)", bins=15, should_export=True, x_lim=[0, 175])
-# utils.plot_by_frequency(df, log_tdd_key, title="Log TDD", x_axis_label="Log TDD (U)", bins=15, should_export=True, x_lim=[0, 6])
+log_tdd_key = "log_" + tdd_key
+# Avoid divide by zero error
+df[tdd_key] = df[tdd_key].replace(0, 1)
+df[log_tdd_key] = np.log(df[tdd_key])
+df = df[df[log_tdd_key] > -np.inf]
+# utils.box_plot(df[tdd_key], data_axis_labels=["TDD", ""], title="TDD Distribution: Overall")
+# utils.box_plot(df["log_" + tdd_key], data_axis_labels=["Log TDD", ""], title="Log TDD Distribution: Overall")
+utils.plot_by_frequency(
+    df,
+    tdd_key,
+    title="TDD",
+    x_axis_label="TDD (U)",
+    bins=15,
+    export_path=utils.get_figure_export_path(file_name, "tdd", analysis_name),
+    x_lim=[0, 175],
+)
+utils.plot_by_frequency(
+    df,
+    log_tdd_key,
+    title="Log TDD",
+    x_axis_label="Log TDD (U)",
+    bins=15,
+    export_path=utils.get_figure_export_path(file_name, "log_tdd", analysis_name),
+    x_lim=[0, 6],
+)
 
 """ Total daily basal """
-# log_basal_key = "log_" + basal_key
-# # Avoid divide by zero error
-# df[basal_key] = df[basal_key].replace(0, 1)
-# df[log_basal_key] = np.log(df[basal_key])
-# df = df[df[log_basal_key] > -np.inf]
-# utils.plot_by_frequency(df, basal_key, title="Total Daily Basal", x_axis_label="Total Daily Basal (U)", bins=15, should_export=True, x_lim=[0, 160])
-# utils.plot_by_frequency(df, log_basal_key, title="Log Total Daily Basal", x_axis_label="Log Total Daily Basal (U)", bins=15, should_export=True, x_lim=[0, 6])
+log_basal_key = "log_" + basal_key
+# Avoid divide by zero error
+df[basal_key] = df[basal_key].replace(0, 1)
+df[log_basal_key] = np.log(df[basal_key])
+df = df[df[log_basal_key] > -np.inf]
+utils.plot_by_frequency(
+    df,
+    basal_key,
+    title="Total Daily Basal",
+    x_axis_label="Total Daily Basal (U)",
+    bins=15,
+    export_path=utils.get_figure_export_path(
+        file_name, "total_daily_basal", analysis_name
+    ),
+    x_lim=[0, 160],
+)
+utils.plot_by_frequency(
+    df,
+    log_basal_key,
+    title="Log Total Daily Basal",
+    x_axis_label="Log Total Daily Basal (U)",
+    bins=15,
+    export_path=utils.get_figure_export_path(
+        file_name, "log_total_daily_basal", analysis_name
+    ),
+    x_lim=[0, 6],
+)
 
 """ Carbs per day """
 log_carb_key = "log_" + carb_key
@@ -67,7 +106,7 @@ utils.plot_by_frequency(
     title="Daily CHO",
     x_axis_label="Daily CHO (g)",
     bins=15,
-    should_export=True,
+    export_path=utils.get_figure_export_path(file_name, "daily_cho", analysis_name),
     x_lim=[0, 500],
 )
 utils.plot_by_frequency(
@@ -76,7 +115,7 @@ utils.plot_by_frequency(
     title="Log Daily CHO",
     x_axis_label="Log Daily CHO (g)",
     bins=30,
-    should_export=True,
+    export_path=utils.get_figure_export_path(file_name, "log_daily_cho", analysis_name),
     x_lim=[0, 7],
 )
 
@@ -90,7 +129,7 @@ utils.plot_by_frequency(
     title="BMI",
     x_axis_label="BMI",
     bins=30,
-    should_export=True,
+    export_path=utils.get_figure_export_path(file_name, "bmi", analysis_name),
     x_lim=[0, 50],
 )
 
@@ -109,7 +148,7 @@ utils.plot_by_frequency(
     title="ISF",
     x_axis_label="ISF (mg/dL/U)",
     bins=15,
-    should_export=True,
+    export_path=utils.get_figure_export_path(file_name, "isf", analysis_name),
     x_lim=[0, 500],
 )
 utils.plot_by_frequency(
@@ -118,7 +157,7 @@ utils.plot_by_frequency(
     title="Log ISF",
     x_axis_label="Log ISF (mg/dL/U)",
     bins=15,
-    should_export=True,
+    export_path=utils.get_figure_export_path(file_name, "log_isf", analysis_name),
     x_lim=[0, 7],
 )
 
@@ -136,7 +175,7 @@ utils.plot_by_frequency(
     title="ICR",
     x_axis_label="ICR (g/U)",
     bins=15,
-    should_export=True,
+    export_path=utils.get_figure_export_path(file_name, "icr", analysis_name),
     x_lim=[0, 55],
 )
 utils.plot_by_frequency(
@@ -145,11 +184,17 @@ utils.plot_by_frequency(
     title="Log ICR",
     x_axis_label="Log ICR (g/U)",
     bins=15,
-    should_export=True,
+    export_path=utils.get_figure_export_path(file_name, "log_icr", analysis_name),
     x_lim=[0, 4],
 )
 
 """ Time in Range """
-# utils.box_plot(df[tir_key], data_axis_labels=["TIR", ""], title="TIR Distribution: Overall")
+# utils.box_plot(
+#     df[tir_key], data_axis_labels=["TIR", ""], title="TIR Distribution: Overall"
+# )
 # df["log_" + tir_key] = np.log(df[tir_key])
-# utils.box_plot(df["log_" + tir_key], data_axis_labels=["Log TIR", ""], title="Log TIR Distribution: Overall")
+# utils.box_plot(
+#     df["log_" + tir_key],
+#     data_axis_labels=["Log TIR", ""],
+#     title="Log TIR Distribution: Overall",
+# )

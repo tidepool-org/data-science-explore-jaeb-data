@@ -125,7 +125,7 @@ def generate_boxplot_data(df, y_data_key, range, x_data_key=None, interval=1):
 
 
 def plot_by_frequency(
-    df, column_key, title="", x_axis_label="", x_lim=None, bins=10, should_export=False
+    df, column_key, title="", x_axis_label="", x_lim=None, bins=10, export_path=""
 ):
     """
     df - dataframe containing column titled 'column_key'
@@ -142,9 +142,8 @@ def plot_by_frequency(
     plt.ylabel("Count of Occurrences")
     if x_lim:
         plt.xlim(x_lim[0], x_lim[1])
-    if should_export:
-        file_name = title + ".png" if len(title) else column_key + ".png"
-        plt.savefig(get_save_path(file_name, ["results", "figures"]))
+    if len(export_path) > 0:
+        plt.savefig(export_path)
         plt.clf()
     else:
         plt.show()
@@ -202,9 +201,9 @@ def make_dir_if_it_doesnt_exist(dir_):
 
 
 def get_save_path(
-    dataset_name, full_analysis_name, report_type="figures", root_dir="reports"
+    dataset_name, full_analysis_name, report_type="figures", root_dir="results"
 ):
-    output_path = os.path.join("..", "..", root_dir, dataset_name)
+    output_path = os.path.join("..", root_dir, dataset_name)
     date_version_name, _, _, _ = get_file_stamps()
     save_path = os.path.join(
         output_path, "{}-{}".format(full_analysis_name, date_version_name), report_type
@@ -220,7 +219,7 @@ def get_save_path_with_file(
     full_analysis_name,
     file_name,
     report_type="figures",
-    root_dir="reports",
+    root_dir="results",
 ):
     return os.path.join(
         get_save_path(dataset_name, full_analysis_name, report_type, root_dir),
@@ -241,5 +240,11 @@ def save_df(df_results, analysis_name, save_dir, save_type="tsv"):
 def get_demographic_export_path(demographic, dataset, analysis_name):
     """ Get file path for export of filtered demographic datasets """
     assert isinstance(demographic, DemographicSelection)
-    file_name = demographic.name.lower() + ".csv"
+    file_name = demographic.name.lower() + "_" + dataset + ".csv"
     return get_save_path_with_file(dataset, analysis_name, file_name, "data-processing")
+
+def get_figure_export_path(dataset, plot_title, analysis_name):
+    """ Get file path for export of filtered demographic datasets """
+    short_dataset = dataset[:20] if len(dataset) >= 20 else dataset
+    file_name = plot_title + "_" + short_dataset + ".png"
+    return get_save_path_with_file(dataset, analysis_name, file_name, "plots")
