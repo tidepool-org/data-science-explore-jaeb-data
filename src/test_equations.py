@@ -11,6 +11,8 @@ result_cols = [
     "traditional_rmse",
     "jaeb_sse",
     "traditional_sse",
+    "jaeb_bic",
+    "traditional_bic",
 ]
 output_df = pd.DataFrame(columns=result_cols)
 analysis_name = "evaluate-equations"
@@ -80,8 +82,12 @@ df["traditional_basal_residual"] = df[basal_key] - df["traditional_predicted_bas
 jaeb_basal_sum_squared_errors = sum(df["jaeb_basal_residual"] ** 2)
 traditional_basal_sum_squared_errors = sum(df["traditional_basal_residual"] ** 2)
 
-jaeb_basal_aic = utils.aic(2, jaeb_basal_sum_squared_errors)
-traditional_basal_aic = utils.aic(1, traditional_basal_sum_squared_errors)
+jaeb_basal_aic, jaeb_basal_bic = utils.aic_bic(
+    df.shape[0], 2, jaeb_basal_sum_squared_errors
+)
+traditional_basal_aic, traditional_basal_bic = utils.aic_bic(
+    df.shape[0], 1, traditional_basal_sum_squared_errors
+)
 
 output_df.loc["Basal"] = [
     jaeb_basal_aic,
@@ -90,6 +96,8 @@ output_df.loc["Basal"] = [
     (traditional_basal_sum_squared_errors / df.shape[0]) ** 0.5,
     jaeb_basal_sum_squared_errors,
     traditional_basal_sum_squared_errors,
+    jaeb_basal_bic,
+    traditional_basal_bic,
 ]
 
 """ ISF Analysis """
@@ -107,8 +115,10 @@ df["traditional_isf_residual"] = df[isf_key] - df["traditional_predicted_isf"]
 jaeb_isf_sum_squared_errors = sum(df["jaeb_isf_residual"] ** 2)
 traditional_isf_sum_squared_errors = sum(df["traditional_isf_residual"] ** 2)
 
-jaeb_isf_aic = utils.aic(2, jaeb_isf_sum_squared_errors)
-traditional_isf_aic = utils.aic(1, traditional_isf_sum_squared_errors)
+jaeb_isf_aic, jaeb_isf_bic = utils.aic_bic(df.shape[0], 2, jaeb_isf_sum_squared_errors)
+traditional_isf_aic, traditional_isf_bic = utils.aic_bic(
+    df.shape[0], 1, traditional_isf_sum_squared_errors
+)
 
 output_df.loc["ISF"] = [
     jaeb_isf_aic,
@@ -117,6 +127,8 @@ output_df.loc["ISF"] = [
     (traditional_isf_sum_squared_errors / df.shape[0]) ** 0.5,
     jaeb_isf_sum_squared_errors,
     traditional_isf_sum_squared_errors,
+    jaeb_isf_bic,
+    traditional_isf_bic,
 ]
 
 """ ICR Analysis """
@@ -133,8 +145,10 @@ df["traditional_icr_residual"] = df[icr_key] - df["traditional_predicted_icr"]
 jaeb_icr_sum_squared_errors = sum(df["jaeb_icr_residual"] ** 2)
 traditional_icr_sum_squared_errors = sum(df["traditional_icr_residual"] ** 2)
 
-jaeb_icr_aic = utils.aic(2, jaeb_icr_sum_squared_errors)
-traditional_icr_aic = utils.aic(1, traditional_icr_sum_squared_errors)
+jaeb_icr_aic, jaeb_icr_bic = utils.aic_bic(df.shape[0], 2, jaeb_icr_sum_squared_errors)
+traditional_icr_aic, traditional_icr_bic = utils.aic_bic(
+    df.shape[0], 1, traditional_icr_sum_squared_errors
+)
 
 output_df.loc["ICR"] = [
     jaeb_icr_aic,
@@ -143,6 +157,8 @@ output_df.loc["ICR"] = [
     (traditional_icr_sum_squared_errors / df.shape[0]) ** 0.5,
     jaeb_icr_sum_squared_errors,
     traditional_icr_sum_squared_errors,
+    jaeb_icr_bic,
+    traditional_icr_bic,
 ]
 
 output_df.to_csv(

@@ -116,9 +116,24 @@ def two_dimension_plot(x, y, labels=["", ""], title="", ylim=None):
     plt.show()
 
 
-def aic(k, sum_squared_errors):
-    """ Compute AIC based on sum of squared errors & k """
-    return 2 * k - 2 * np.log(sum_squared_errors)
+def log_likelihood(n, k, sum_squared_errors):
+    """ Find the maximum log likelihood for a *normal* distribution """
+    # TODO: make sure this is the correct calculation
+    ll = -(n * 1 / 2) * (1 + np.log(2 * np.pi)) - (n / 2) * np.log(
+        sum_squared_errors / n
+    )
+    return ll
+
+
+def aic_bic(n, k, sum_squared_errors):
+    """ 
+    Compute Akaike Information Criterion (AIC) & 
+    Bayesian Information Criterion (BIC)
+    """
+    max_log_likelihood = log_likelihood(n, k, sum_squared_errors)
+    aic = (2 * k)       - 2 * max_log_likelihood
+    bic = np.log(n) * k - 2 * max_log_likelihood
+    return (aic, bic)
 
 
 def jaeb_basal_equation(tdd, carbs):
