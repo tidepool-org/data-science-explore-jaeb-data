@@ -1,83 +1,146 @@
 import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
-import scipy
 import utils
-from pathlib import Path
-import math
 
 
-base_path = Path(__file__).parent
-# data_path = (base_path / "../data/PHI-filtered-subjects.csv").resolve()
-data_path = (base_path / "../data/PHI-more-hypo-subjects.csv").resolve()
+data_path = utils.find_full_path(
+    "phi-uniq_set-3hr_hyst-2020_08_29_23-v0_1_develop-12c5af2", ".csv"
+)
 df = pd.read_csv(data_path)
+result_cols = ["jaeb_aic", "traditional_aic", "jaeb_rmse", "traditional_rmse", "jaeb_sse", "traditional_sse"]
+output_df = pd.DataFrame(columns=result_cols)
+analysis_name = "evaluate-equations"
 
 
-def basal_eq(tdd, carbs):
-    return 0.6507 * tdd * math.exp(-0.001498 * carbs)
+# Keys for working with Jaeb exports
+tdd_key = "total_daily_dose_avg"
+basal_key = "total_daily_basal_insulin_avg"  # Total daily basal
+carb_key = "total_daily_carb_avg"  # Total daily CHO
+bmi_key = "bmi_at_baseline"
+bmi_percentile = "bmi_perc_at_baseline"
+isf_key = "isf"
+icr_key = "carb_ratio"
+age_key = "age_at_baseline"
+tir_key = "percent_70_180_2week"
 
+percent_cgm_available = "percent_cgm_available_2week"
+below_40 = "percent_below_40_2week"
+below_54 = "percent_below_54_2week"
+percent_70_180 = "percent_70_180_2week"
+days_insulin = "days_with_insulin"
 
-def bmi_basal_eq(tdd, carbs, bmi):
-    return 0.6187139 * tdd * math.exp(-0.001498 * carbs) + 0.06408586 * bmi
-
-
-def isf_eq(tdd, bmi):
-    return 40250 / (tdd * bmi)
-
-
-def icr_eq(tdd, carbs):
-    return (1.31 * carbs + 136.3) / tdd
-
-
+# Filter to make sure basals are reasonable
 df = df[
-    (df.basal_total_daily_geomean > 1)
-    # Normal weight
-    # & (df.bmi < 25)
-    # & (df.bmi > 10)
-    # Overweight
-    # & (df.bmi > 25)
-    # & (df.bmi < 30)
+    (df[basal_key] > 1)
 ]
 
-# Keys for working with Jason's exports
-tdd_key = "insulin_total_daily_geomean"
-basal_key = "scheduled_basal_total_daily_insulin_expected"
-carb_key = "carbs_total_daily_geomean"
-bmi_key = "bmi"
-isf_key = "insulin_weighted_isf"
-icr_key = "carb_weighted_carb_ratio"
-age_key = "ageAtBaseline"
+# Filter for aspirational
+# df = df[
+#     (df[basal_key] > 1)
+#     # Normal weight
+#     & (df[bmi_key] < 25)
+#     & (df[bmi_key] >= 18.5)
+#     # Enough data to evaluate
+#     & (df[percent_cgm_available] >= 90)
+#     & (df[days_insulin] >= 14)
+#     # Good CGM distributions
+#     & (df[below_40] == 0)
+#     & (df[below_54] < 1)
+#     & (df[percent_70_180] >= 70)
+# ]
+
+# Non-Aspirational
+# df = df[
+#     (df[basal_key] > 1)
+#     # Normal weight
+#     | (df[bmi_key] >= 25)
+#     | (df[bmi_key] < 18.5)
+#     # Enough data to evaluate
+#     | (df[percent_cgm_available] >= 90)
+#     | (df[days_insulin] >= 14)
+#     # Good CGM distributions
+#     | (df[below_40] != 0)
+#     | (df[below_54] >= 1)
+#     | (df[percent_70_180] <= 70)
+# ]
 
 """ Basal Analysis """
-df["predicted_basals"] = df.apply(lambda x: basal_eq(x[tdd_key], x[carb_key]), axis=1)
-df["predicted_basals_bmi"] = df.apply(
-    lambda x: bmi_basal_eq(x[tdd_key], x[carb_key], x[bmi_key]), axis=1
+df["jaeb_predicted_basals"] = df.apply(
+    lambda x: utils.jaeb_basal_equation(x[tdd_key], x[carb_key]), axis=1
 )
-df.dropna(subset=["predicted_basals", "predicted_basals_bmi"])
+df["traditional_predicted_basals"] = df.apply(
+    lambda x: utils.traditional_basal_equation(x[tdd_key]), axis=1
+)
 
-basal_residual = df[basal_key] - df["predicted_basals"]
-# utils.two_dimension_plot(df[basal_key], basal_residual, ["Basal", "Residual"])
-# utils.two_dimension_plot(df[age_key], basal_residual)
+df["jaeb_basal_residual"] = df[basal_key] - df["jaeb_predicted_basals"]
+df["traditional_basal_residual"] = df[basal_key] - df["traditional_predicted_basals"]
+
+jaeb_basal_sum_squared_errors = sum(df["jaeb_basal_residual"] ** 2)
+traditional_basal_sum_squared_errors = sum(df["traditional_basal_residual"] ** 2)
+
+jaeb_basal_aic = utils.aic(2, jaeb_basal_sum_squared_errors)
+traditional_basal_aic = utils.aic(1, traditional_basal_sum_squared_errors)
+
+print("Basal: Jaeb", jaeb_basal_aic, "Traditional", traditional_basal_aic)
+print("Jaeb - Traditional:", jaeb_basal_aic - traditional_basal_aic)
+print(
+    "RMSE: Jaeb", 
+    (jaeb_basal_sum_squared_errors / df.shape[0]) ** 0.5,
+    "Traditional", 
+    (traditional_basal_sum_squared_errors / df.shape[0]) ** 0.5
+)
+print()
 
 """ ISF Analysis """
-df["predicted_isf"] = df.apply(lambda x: isf_eq(x[tdd_key], x[bmi_key]), axis=1)
-df["1800_isf"] = df.apply(lambda x: 1800 / x[tdd_key], axis=1)
-df["age_isf"] = df.apply(
-    lambda x: age_isf_eq(x[tdd_key], x[bmi_key], x[age_key]), axis=1
+df["jaeb_predicted_isf"] = df.apply(
+    lambda x: utils.jaeb_isf_equation(x[tdd_key], x[bmi_key]), axis=1
 )
-isf_residual = df[isf_key] - df["predicted_isf"]
-print(df.head())
-print("ISF RMSE:", utils.rmse(df[isf_key], df["predicted_isf"]))
-print("ISF Age RMSE:", utils.rmse(df[isf_key], df["age_isf"]))
-utils.two_dimension_plot(df[isf_key], isf_residual, ["ISF", "Residual"])
-# utils.two_dimension_plot(df[isf_key], df[isf_key] - df["1800_isf"], ["ISF", "1800 Residual"])
-# utils.two_dimension_plot(df[carb_key], isf_residual, ["ISF", "Residual"])
-# utils.three_dimension_plot(isf_residual, df[tdd_key], df[bmi_key], ["Residual", "TDD", "BMI"])
+df["traditional_predicted_isf"] = df.apply(
+    lambda x: utils.traditional_isf_equation(x[tdd_key]), axis=1
+)
+df = df.dropna(subset=["jaeb_predicted_isf", "traditional_predicted_isf"])
+
+df["jaeb_isf_residual"] = df[isf_key] - df["jaeb_predicted_isf"]
+df["traditional_isf_residual"] = df[isf_key] - df["traditional_predicted_isf"]
+
+jaeb_isf_sum_squared_errors = sum(df["jaeb_isf_residual"] ** 2)
+traditional_isf_sum_squared_errors = sum(df["traditional_isf_residual"] ** 2)
+
+jaeb_isf_aic = utils.aic(2, jaeb_isf_sum_squared_errors)
+traditional_isf_aic = utils.aic(1, traditional_isf_sum_squared_errors)
+
+print("ISF: Jaeb", jaeb_isf_aic, "Traditional", traditional_isf_aic)
+print("Jaeb - Traditional:", jaeb_isf_aic - traditional_isf_aic)
+print(
+    "RMSE: Jaeb", 
+    (jaeb_isf_sum_squared_errors / df.shape[0]) ** 0.5,
+    "Traditional", 
+    (traditional_isf_sum_squared_errors / df.shape[0]) ** 0.5
+)
+print()
+
 
 """ ICR Analysis """
-df["predicted_icr"] = df.apply(lambda x: icr_eq(x[tdd_key], x[carb_key]), axis=1)
-df["1800_icr"] = df.apply(lambda x: 500 / x[tdd_key], axis=1)
-utils.two_dimension_plot(
-    df[icr_key], df[icr_key] - df["predicted_icr"], ["ICR", "Residual"]
+df["jaeb_predicted_icr"] = df.apply(
+    lambda x: utils.jaeb_icr_equation(x[tdd_key], x[carb_key]), axis=1
 )
-# utils.two_dimension_plot(df[icr_key], df[icr_key] - df["1800_icr"], ["1800 ICR", "Residual"])
+df["traditional_predicted_icr"] = df.apply(
+    lambda x: utils.traditional_icr_equation(x[tdd_key]), axis=1
+)
+
+df["jaeb_icr_residual"] = df[icr_key] - df["jaeb_predicted_icr"]
+df["traditional_icr_residual"] = df[icr_key] - df["traditional_predicted_icr"]
+
+jaeb_icr_sum_squared_errors = sum(df["jaeb_icr_residual"] ** 2)
+traditional_icr_sum_squared_errors = sum(df["traditional_icr_residual"] ** 2)
+
+jaeb_icr_aic = utils.aic(2, jaeb_icr_sum_squared_errors)
+traditional_icr_aic = utils.aic(1, traditional_icr_sum_squared_errors)
+
+print("ICR: Jaeb", jaeb_icr_aic, "Traditional", traditional_icr_aic)
+print("Jaeb - Traditional:", jaeb_icr_aic - traditional_icr_aic)
+print(
+    "RMSE: Jaeb", 
+    (jaeb_icr_sum_squared_errors / df.shape[0]) ** 0.5,
+    "Traditional", 
+    (traditional_icr_sum_squared_errors / df.shape[0]) ** 0.5
+)
