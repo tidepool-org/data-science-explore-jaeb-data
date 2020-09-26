@@ -6,8 +6,8 @@ import utils
 from pathlib import Path
 import math
 
-base_path = Path(__file__).parent
-data_path = (base_path / "../data/Filtered - Adult.csv").resolve()
+input_file_name = "Filtered - Adult"
+data_path = utils.find_full_path(input_file_name, ".csv")
 df = pd.read_csv(data_path)
 
 # Keys for working with Jason's exports

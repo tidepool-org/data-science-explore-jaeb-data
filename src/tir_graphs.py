@@ -4,10 +4,9 @@ from pathlib import Path
 import math
 
 
-base_path = Path(__file__).parent
-data_path = (
-    base_path / "../data/for-figures/PHI-filtered-subjects-80-100.csv"
-).resolve()
+input_file_name = "PHI-filtered-subjects-80-100"
+data_path = utils.find_full_path(input_file_name, ".csv")
+
 tir = "80 - 100%"
 df = pd.read_csv(data_path)
 
