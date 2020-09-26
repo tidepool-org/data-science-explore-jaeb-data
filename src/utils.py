@@ -117,11 +117,13 @@ def two_dimension_plot(x, y, labels=["", ""], title="", ylim=None):
 
 
 def log_likelihood(n, k, sum_squared_errors):
-    """ Find the maximum log likelihood for a *normal* distribution """
-    # TODO: make sure this is the correct calculation
-    ll = -(n * 1 / 2) * (1 + np.log(2 * np.pi)) - (n / 2) * np.log(
-        sum_squared_errors / n
-    )
+    """ 
+    Find the maximum log likelihood for a *normal* distribution 
+    Note: formula is from
+    https://www.projectrhea.org/rhea/index.php/Maximum_Likelihood_
+    Estimation_Analysis_for_various_Probability_Distributions
+    """
+    ll = -(n / 2) * (1 + np.log(2 * np.pi)) - (n / 2) * np.log(sum_squared_errors / n)
     return ll
 
 
@@ -131,7 +133,7 @@ def aic_bic(n, k, sum_squared_errors):
     Bayesian Information Criterion (BIC)
     """
     max_log_likelihood = log_likelihood(n, k, sum_squared_errors)
-    aic = (2 * k)       - 2 * max_log_likelihood
+    aic = (2 * k) - 2 * max_log_likelihood
     bic = np.log(n) * k - 2 * max_log_likelihood
     return (aic, bic)
 
