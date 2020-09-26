@@ -209,9 +209,9 @@ def make_dir_if_it_doesnt_exist(dir_):
 
 
 def get_save_path(
-    dataset_name, full_analysis_name, report_type="figures", root_dir="results"
+    dataset_name, full_analysis_name, report_type="figures", root_dir=".reports"
 ):
-    output_path = os.path.join("..", root_dir, dataset_name)
+    output_path = os.path.join(root_dir, dataset_name)
     date_version_name, _, _, _ = get_file_stamps()
     save_path = os.path.join(
         output_path, "{}-{}".format(full_analysis_name, date_version_name), report_type
@@ -227,7 +227,7 @@ def get_save_path_with_file(
     full_analysis_name,
     file_name,
     report_type="figures",
-    root_dir="results",
+    root_dir=".reports",
 ):
     return os.path.join(
         get_save_path(dataset_name, full_analysis_name, report_type, root_dir),
