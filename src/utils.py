@@ -1,13 +1,16 @@
+import math
+import os
+import subprocess
+
+import datetime as dt
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+
 from mpl_toolkits.mplot3d import Axes3D
-from sklearn.metrics import mean_squared_error
-import math
-import os
 from pathlib import Path
-import subprocess
-import datetime as dt
+from sklearn.model_selection import KFold
+from enum import Enum
 
 
 class DemographicSelection(Enum):
@@ -23,30 +26,39 @@ def rmse(y, y_predict):
     return ((y - y_predict) ** 2).mean() ** 0.5
 
 
-def filter_data_for_equations_adult(df):
-    return df[
-        (df.total_daily_basal_insulin_avg > 1)
+def extract_bmi_percentile(s):
+    """
+    Extract a bmi percentile from a string.
+    Precondition: string must be in format 'number%' (ex: '20%')
+    """
+    return int(s[:-1])
+
+
+def filter_aspirational_data_adult(df):
+    adults = df[
+        (df.age_at_baseline >= 18)
         # Normal weight
-        & (df.bmi_at_baseline_at_baseline < 25)
-        & (df.bmi_at_baseline_at_baseline >= 18.5)
-        # Enough data to evaluate
-        & (df.percent_cgm_available_2week >= 90)
-        & (df.days_with_insulin >= 14)
-        # Good CGM distributions
-        & (df.percent_below_40_2week == 0)
-        & (df.percent_below_54_2week < 1)
-        & (df.percent_70_180_2week >= 70)
-        & (df.percent_above_250_2week < 5)
+        & (df.bmi_at_baseline < 25)
+        & (df.bmi_at_baseline >= 18.5)
+    ]
+    return filter_aspirational_data_without_weight(adults)
+
+
+def filter_aspirational_data_peds(df):
+    peds = df[(df.age_at_baseline < 18) & (df.bmi_perc_at_baseline != ".")]
+    peds.bmi_perc_at_baseline = peds.bmi_perc_at_baseline.apply(extract_bmi_percentile)
+    peds = peds[
+        # Normal weight
+        (peds.bmi_perc_at_baseline < 85)
+        & (peds.bmi_perc_at_baseline >= 5)
     ]
 
+    return filter_aspirational_data_without_weight(peds)
 
-def filter_data_for_equations_peds(df):
-    # TODO: use BMI percentiles
+
+def filter_aspirational_data_without_weight(df):
     return df[
         (df.total_daily_basal_insulin_avg > 1)
-        # Normal weight
-        & (df.bmi_at_baseline_at_baseline < 25)
-        & (df.bmi_at_baseline_at_baseline >= 18.5)
         # Enough data to evaluate
         & (df.percent_cgm_available_2week >= 90)
         & (df.days_with_insulin >= 14)
@@ -272,3 +284,37 @@ def get_figure_export_path(dataset, plot_title, analysis_name):
     short_dataset = dataset[:20] if len(dataset) >= 20 else dataset
     file_name = plot_title + "_" + short_dataset + ".png"
     return get_save_path_with_file(dataset, analysis_name, file_name, "plots")
+
+
+def find_and_export_kfolds(df, input_file_name, analysis_name, demographic, n_splits=5):
+    assert isinstance(demographic, DemographicSelection)
+    # Set random state so results are reproduceable
+    kf = KFold(n_splits=n_splits, random_state=2, shuffle=True)
+
+    group = 1
+    for train_indexes, test_indexes in kf.split(df):
+        df.iloc[train_indexes].to_csv(
+            get_save_path_with_file(
+                input_file_name,
+                analysis_name,
+                "train_"
+                + str(group)
+                + "_"
+                + demographic.name.lower()
+                + "_aspirational.csv",
+                "data-processing",
+            )
+        )
+        df.iloc[test_indexes].to_csv(
+            get_save_path_with_file(
+                input_file_name,
+                analysis_name,
+                "test_"
+                + str(group)
+                + "_"
+                + demographic.name.lower()
+                + "_aspirational.csv",
+                "data-processing",
+            )
+        )
+        group += 1
