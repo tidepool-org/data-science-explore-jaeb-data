@@ -10,6 +10,14 @@ import subprocess
 import datetime as dt
 
 
+class DemographicSelection(Enum):
+    OVERALL = 1
+    PEDIATRIC = 2
+    ADULT = 3
+    ASPIRATIONAL = 4
+    NON_ASPIRATIONAL = 5
+
+
 def rmse(y, y_predict):
     """ RMSE function, as Python doesn't have a library func for it """
     return ((y - y_predict) ** 2).mean() ** 0.5
