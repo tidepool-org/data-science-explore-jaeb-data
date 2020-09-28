@@ -301,7 +301,9 @@ def find_and_export_kfolds(df, input_file_name, analysis_name, demographic, n_sp
                 + str(group)
                 + "_"
                 + demographic.name.lower()
-                + "_aspirational.csv",
+                + "_aspirational_"
+                + get_file_stamps()[0]
+                + ".csv",
                 "data-processing",
             )
         )
@@ -313,7 +315,9 @@ def find_and_export_kfolds(df, input_file_name, analysis_name, demographic, n_sp
                 + str(group)
                 + "_"
                 + demographic.name.lower()
-                + "_aspirational.csv",
+                + "_aspirational_"
+                + get_file_stamps()[0]
+                + ".csv",
                 "data-processing",
             )
         )
