@@ -15,68 +15,83 @@ def rmse(y, y_predict):
     return ((y - y_predict) ** 2).mean() ** 0.5
 
 
-def filter_data_for_equations(df):
-    df = df.dropna(subset=["basal_rate_schedule"])
+def filter_data_for_equations_adult(df):
     return df[
-        (df.ageAtBaseline >= 18)
-        & (df.bmi > 18.5)
-        & (df.bmi < 25)
-        & (df.percent_cgm_available >= 90)
-        & (df.percent_70_180 >= 70)
-        & (df.percent_below_54 < 1)
-        & (df.percent_below_40 == 0)
-        & (df.days_with_carbs >= 14)
+        (df.total_daily_basal_insulin_avg > 1)
+        # Normal weight
+        & (df.bmi_at_baseline_at_baseline < 25)
+        & (df.bmi_at_baseline_at_baseline >= 18.5)
+        # Enough data to evaluate
+        & (df.percent_cgm_available_2week >= 90)
         & (df.days_with_insulin >= 14)
-        & (df.days_with_basals >= 14)
+        # Good CGM distributions
+        & (df.percent_below_40_2week == 0)
+        & (df.percent_below_54_2week < 1)
+        & (df.percent_70_180_2week >= 70)
+        & (df.percent_above_250_2week < 5)
+    ]
+
+
+def filter_data_for_equations_peds(df):
+    # TODO: use BMI percentiles
+    return df[
+        (df.total_daily_basal_insulin_avg > 1)
+        # Normal weight
+        & (df.bmi_at_baseline_at_baseline < 25)
+        & (df.bmi_at_baseline_at_baseline >= 18.5)
+        # Enough data to evaluate
+        & (df.percent_cgm_available_2week >= 90)
+        & (df.days_with_insulin >= 14)
+        # Good CGM distributions
+        & (df.percent_below_40_2week == 0)
+        & (df.percent_below_54_2week < 1)
+        & (df.percent_70_180_2week >= 70)
+        & (df.percent_above_250_2week < 5)
     ]
 
 
 def filter_data_for_equation_verification(df):
-    """Filter to get data that's not ideal but close to it,
-    for the purpose of testing the equations"""
-    df = df.dropna(subset=["basal_rate_schedule"])
+    """
+    Filter to get data that's not ideal but close to it,
+    for the purpose of testing the equations
+    """
     return df[
-        (df.ageAtBaseline >= 18)
-        & (df.bmi > 18.5)
-        & (df.bmi < 25)
-        & (df.percent_cgm_available >= 90)
-        & (df.percent_70_180 >= 70)
-        & (df.percent_below_54 > 1)
-        & (df.percent_below_54 < 1.5)
-        & (df.percent_below_40 == 0)
-        & (df.days_with_carbs >= 14)
+        (df.age_at_baseline >= 18)
+        & (df.bmi_at_baseline > 18.5)
+        & (df.bmi_at_baseline < 25)
+        & (df.percent_cgm_available_2week >= 90)
+        & (df.percent_70_180_2week >= 70)
+        & (df.percent_below_54_2week > 1)
+        & (df.percent_below_54_2week < 1.5)
+        & (df.percent_below_40_2week == 0)
         & (df.days_with_insulin >= 14)
-        & (df.days_with_basals >= 14)
     ]
 
 
 def filter_data_for_peds_equation_verification(df):
-    """Filter to get pediatric data that's not ideal but close to it,
-    for the purpose of testing the equations"""
+    """
+    Filter to get pediatric data that's not ideal but close to it,
+    for the purpose of testing the equations
+    """
     df = df.dropna(subset=["basal_rate_schedule"])
     return df[
-        (df.ageAtBaseline < 18)
-        & (df.percent_cgm_available >= 90)
-        & (df.percent_70_180 >= 70)
-        & (df.percent_below_54 > 1)
-        & (df.percent_below_54 < 1.5)
-        & (df.percent_below_40 == 0)
-        & (df.days_with_carbs >= 14)
+        (df.age_at_baseline < 18)
+        & (df.percent_cgm_available_2week >= 90)
+        & (df.percent_70_180_2week >= 70)
+        & (df.percent_below_54_2week > 1)
+        & (df.percent_below_54_2week < 1.5)
+        & (df.percent_below_40_2week == 0)
         & (df.days_with_insulin >= 14)
-        & (df.days_with_basals >= 14)
     ]
 
 
 def filter_data_for_non_ideal_settings(df):
     """ Filter to get settings that likely aren't correct """
-    df = df.dropna(subset=["basal_rate_schedule"])
     return df[
-        (df.ageAtBaseline >= 18)
-        & (df.percent_cgm_available >= 90)
-        & (df.percent_below_54 > 5)
-        & (df.days_with_carbs >= 14)
+        (df.age_at_baseline >= 18)
+        & (df.percent_cgm_available_2week >= 90)
+        & (df.percent_below_54_2week > 5)
         & (df.days_with_insulin >= 14)
-        & (df.days_with_basals >= 14)
     ]
 
 

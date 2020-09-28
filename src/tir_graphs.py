@@ -26,13 +26,15 @@ def icr_eq(tdd, carbs):
 
 
 # Keys for working with Jason's exports
-tdd_key = "insulin_total_daily_geomean"
-basal_key = "scheduled_basal_total_daily_insulin_expected"
-carb_key = "carbs_total_daily_geomean"
-bmi_key = "bmi"
-isf_key = "insulin_weighted_isf"
-icr_key = "carb_weighted_carb_ratio"
-age_key = "ageAtBaseline"
+tdd_key = "total_daily_dose_avg"
+basal_key = "total_daily_basal_insulin_avg"  # Total daily basal
+carb_key = "total_daily_carb_avg"  # Total daily CHO
+bmi_key = "bmi_at_baseline"
+bmi_percentile = "bmi_perc_at_baseline"
+isf_key = "isf"
+icr_key = "carb_ratio"
+age_key = "age_at_baseline"
+tir_key = "percent_70_180_2week"
 
 """ Basal Analysis """
 df["predicted_basals"] = df.apply(lambda x: basal_eq(x[tdd_key], x[carb_key]), axis=1)
