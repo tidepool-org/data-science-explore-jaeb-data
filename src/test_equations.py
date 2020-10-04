@@ -1,7 +1,7 @@
 import pandas as pd
 import utils
 
-input_file_name = "phi-uniq_set-3hr_hyst-2020_08_29_23-v0_1_develop-12c5af2"
+input_file_name = "test_1_overall_aspirational_2020_10_04_14-v0_1-e542f7f"
 data_path = utils.find_full_path(input_file_name, ".csv")
 df = pd.read_csv(data_path)
 result_cols = [
@@ -83,10 +83,13 @@ jaeb_basal_sum_squared_errors = sum(df["jaeb_basal_residual"] ** 2)
 traditional_basal_sum_squared_errors = sum(df["traditional_basal_residual"] ** 2)
 
 jaeb_basal_aic, jaeb_basal_bic = utils.aic_bic(
-    df.shape[0], 2, jaeb_basal_sum_squared_errors
+    df.shape[0], 2, jaeb_basal_sum_squared_errors, df["jaeb_basal_residual"].std()
 )
 traditional_basal_aic, traditional_basal_bic = utils.aic_bic(
-    df.shape[0], 1, traditional_basal_sum_squared_errors
+    df.shape[0],
+    1,
+    traditional_basal_sum_squared_errors,
+    df["traditional_basal_residual"].std(),
 )
 
 output_df.loc["Basal"] = [
@@ -115,9 +118,14 @@ df["traditional_isf_residual"] = df[isf_key] - df["traditional_predicted_isf"]
 jaeb_isf_sum_squared_errors = sum(df["jaeb_isf_residual"] ** 2)
 traditional_isf_sum_squared_errors = sum(df["traditional_isf_residual"] ** 2)
 
-jaeb_isf_aic, jaeb_isf_bic = utils.aic_bic(df.shape[0], 2, jaeb_isf_sum_squared_errors)
+jaeb_isf_aic, jaeb_isf_bic = utils.aic_bic(
+    df.shape[0], 2, jaeb_isf_sum_squared_errors, df["jaeb_isf_residual"].std()
+)
 traditional_isf_aic, traditional_isf_bic = utils.aic_bic(
-    df.shape[0], 1, traditional_isf_sum_squared_errors
+    df.shape[0],
+    1,
+    traditional_isf_sum_squared_errors,
+    df["traditional_isf_residual"].std(),
 )
 
 output_df.loc["ISF"] = [
@@ -145,9 +153,14 @@ df["traditional_icr_residual"] = df[icr_key] - df["traditional_predicted_icr"]
 jaeb_icr_sum_squared_errors = sum(df["jaeb_icr_residual"] ** 2)
 traditional_icr_sum_squared_errors = sum(df["traditional_icr_residual"] ** 2)
 
-jaeb_icr_aic, jaeb_icr_bic = utils.aic_bic(df.shape[0], 2, jaeb_icr_sum_squared_errors)
+jaeb_icr_aic, jaeb_icr_bic = utils.aic_bic(
+    df.shape[0], 2, jaeb_icr_sum_squared_errors, df["jaeb_icr_residual"].std()
+)
 traditional_icr_aic, traditional_icr_bic = utils.aic_bic(
-    df.shape[0], 1, traditional_icr_sum_squared_errors
+    df.shape[0],
+    1,
+    traditional_icr_sum_squared_errors,
+    df["traditional_icr_residual"].std(),
 )
 
 output_df.loc["ICR"] = [
@@ -163,7 +176,7 @@ output_df.loc["ICR"] = [
 
 output_df.to_csv(
     utils.get_save_path_with_file(
-        input_file_name, analysis_name, "equation_errors.csv", "data-processing"
+        input_file_name, analysis_name, "equation_errors.csv", "data-analysis"
     )
 )
 df.to_csv(
@@ -171,6 +184,6 @@ df.to_csv(
         input_file_name,
         analysis_name,
         "data_with_equation_predictions.csv",
-        "data-processing",
+        "data-analysis",
     )
 )
