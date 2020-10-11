@@ -185,6 +185,9 @@ def run_equation_testing(input_file_name, jaeb_equations, traditional_equations)
         traditional_icr_bic,
     ]
 
+    output_df["aic_dif"] = output_df["jaeb_aic"] - output_df["traditional_aic"]
+    output_df["bic_dif"] = output_df["jaeb_bic"] - output_df["traditional_bic"]
+
     short_file_name = (
         input_file_name[0:10] if len(input_file_name) > 10 else input_file_name
     )
