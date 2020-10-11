@@ -1,5 +1,7 @@
 import pandas as pd
+import numpy as np
 import utils
+import equation_utils
 from pumpsettings import PumpSettings
 
 
@@ -26,7 +28,7 @@ def run_equation_testing(input_file_name, jaeb_equations, traditional_equations)
     output_df = pd.DataFrame(columns=result_cols)
     analysis_name = "evaluate-equations"
 
-    # Keys for working with Jaeb exports
+    # Keys for working with Jaeb logorts
     tdd_key = "total_daily_dose_avg"
     basal_key = "total_daily_basal_insulin_avg"  # Total daily basal
     carb_key = "total_daily_carb_avg"  # Total daily CHO
@@ -84,22 +86,30 @@ def run_equation_testing(input_file_name, jaeb_equations, traditional_equations)
         lambda x: traditional_equations.basal_equation(x[tdd_key]), axis=1
     )
 
-    df["jaeb_basal_residual"] = df[basal_key] - df["jaeb_predicted_basals"]
-    df["traditional_basal_residual"] = (
-        df[basal_key] - df["traditional_predicted_basals"]
+    # Take the log since it's a log-normal distribution
+    df["jaeb_basal_log_residual"] = np.log(df[basal_key]) - np.log(
+        df["jaeb_predicted_basals"]
+    )
+    df["traditional_basal_log_residual"] = np.log(df[basal_key]) - np.log(
+        df["traditional_predicted_basals"]
     )
 
-    jaeb_basal_sum_squared_errors = sum(df["jaeb_basal_residual"] ** 2)
-    traditional_basal_sum_squared_errors = sum(df["traditional_basal_residual"] ** 2)
+    jaeb_basal_sum_squared_errors = sum(df["jaeb_basal_log_residual"] ** 2)
+    traditional_basal_sum_squared_errors = sum(
+        df["traditional_basal_log_residual"] ** 2
+    )
 
     jaeb_basal_aic, jaeb_basal_bic = utils.aic_bic(
-        df.shape[0], 2, jaeb_basal_sum_squared_errors, df["jaeb_basal_residual"].std()
+        df.shape[0],
+        2,
+        jaeb_basal_sum_squared_errors,
+        df["jaeb_basal_log_residual"].std(),
     )
     traditional_basal_aic, traditional_basal_bic = utils.aic_bic(
         df.shape[0],
         1,
         traditional_basal_sum_squared_errors,
-        df["traditional_basal_residual"].std(),
+        df["traditional_basal_log_residual"].std(),
     )
 
     output_df.loc["Basal"] = [
@@ -122,20 +132,22 @@ def run_equation_testing(input_file_name, jaeb_equations, traditional_equations)
     )
     df = df.dropna(subset=["jaeb_predicted_isf", "traditional_predicted_isf"])
 
-    df["jaeb_isf_residual"] = df[isf_key] - df["jaeb_predicted_isf"]
-    df["traditional_isf_residual"] = df[isf_key] - df["traditional_predicted_isf"]
+    df["jaeb_isf_log_residual"] = np.log(df[isf_key]) - np.log(df["jaeb_predicted_isf"])
+    df["traditional_isf_log_residual"] = np.log(df[isf_key]) - np.log(
+        df["traditional_predicted_isf"]
+    )
 
-    jaeb_isf_sum_squared_errors = sum(df["jaeb_isf_residual"] ** 2)
-    traditional_isf_sum_squared_errors = sum(df["traditional_isf_residual"] ** 2)
+    jaeb_isf_sum_squared_errors = sum(df["jaeb_isf_log_residual"] ** 2)
+    traditional_isf_sum_squared_errors = sum(df["traditional_isf_log_residual"] ** 2)
 
     jaeb_isf_aic, jaeb_isf_bic = utils.aic_bic(
-        df.shape[0], 2, jaeb_isf_sum_squared_errors, df["jaeb_isf_residual"].std()
+        df.shape[0], 2, jaeb_isf_sum_squared_errors, df["jaeb_isf_log_residual"].std()
     )
     traditional_isf_aic, traditional_isf_bic = utils.aic_bic(
         df.shape[0],
         1,
         traditional_isf_sum_squared_errors,
-        df["traditional_isf_residual"].std(),
+        df["traditional_isf_log_residual"].std(),
     )
 
     output_df.loc["ISF"] = [
@@ -157,20 +169,22 @@ def run_equation_testing(input_file_name, jaeb_equations, traditional_equations)
         lambda x: traditional_equations.icr_equation(x[tdd_key]), axis=1
     )
 
-    df["jaeb_icr_residual"] = df[icr_key] - df["jaeb_predicted_icr"]
-    df["traditional_icr_residual"] = df[icr_key] - df["traditional_predicted_icr"]
+    df["jaeb_icr_log_residual"] = np.log(df[icr_key]) - np.log(df["jaeb_predicted_icr"])
+    df["traditional_icr_log_residual"] = np.log(df[icr_key]) - np.log(
+        df["traditional_predicted_icr"]
+    )
 
-    jaeb_icr_sum_squared_errors = sum(df["jaeb_icr_residual"] ** 2)
-    traditional_icr_sum_squared_errors = sum(df["traditional_icr_residual"] ** 2)
+    jaeb_icr_sum_squared_errors = sum(df["jaeb_icr_log_residual"] ** 2)
+    traditional_icr_sum_squared_errors = sum(df["traditional_icr_log_residual"] ** 2)
 
     jaeb_icr_aic, jaeb_icr_bic = utils.aic_bic(
-        df.shape[0], 2, jaeb_icr_sum_squared_errors, df["jaeb_icr_residual"].std()
+        df.shape[0], 2, jaeb_icr_sum_squared_errors, df["jaeb_icr_log_residual"].std()
     )
     traditional_icr_aic, traditional_icr_bic = utils.aic_bic(
         df.shape[0],
         1,
         traditional_icr_sum_squared_errors,
-        df["traditional_icr_residual"].std(),
+        df["traditional_icr_log_residual"].std(),
     )
 
     output_df.loc["ICR"] = [
@@ -184,16 +198,23 @@ def run_equation_testing(input_file_name, jaeb_equations, traditional_equations)
         traditional_icr_bic,
     ]
 
+    short_file_name = (
+        input_file_name[0:10] if len(input_file_name) > 10 else input_file_name
+    )
     output_df.to_csv(
         utils.get_save_path_with_file(
-            input_file_name, analysis_name, "equation_errors.csv", "data-analysis"
+            input_file_name,
+            analysis_name,
+            short_file_name + "_equation_errors.csv",
+            "data-analysis",
         )
     )
+
     df.to_csv(
         utils.get_save_path_with_file(
             input_file_name,
             analysis_name,
-            "data_with_equation_predictions.csv",
+            short_file_name + "_with_equation_predictions.csv",
             "data-analysis",
         )
     )
@@ -201,16 +222,18 @@ def run_equation_testing(input_file_name, jaeb_equations, traditional_equations)
 
 if __name__ == "__main__":
     jaeb = PumpSettings(
-        utils.jaeb_basal_equation, utils.jaeb_isf_equation, utils.jaeb_icr_equation
+        equation_utils.jaeb_basal_equation,
+        equation_utils.jaeb_isf_equation,
+        equation_utils.jaeb_icr_equation,
     )
 
     traditional = PumpSettings(
-        utils.traditional_basal_equation,
-        utils.traditional_isf_equation,
-        utils.traditional_icr_equation,
+        equation_utils.traditional_basal_equation,
+        equation_utils.traditional_isf_equation,
+        equation_utils.traditional_icr_equation,
     )
 
     run_equation_testing(
-        "test_1_overall_aspirational_2020_10_04_14-v0_1-e542f7f", jaeb, traditional
+        "test_1_adult_aspirational_2020_10_11_01-v0_1-1635e10", jaeb, traditional
     )
 
