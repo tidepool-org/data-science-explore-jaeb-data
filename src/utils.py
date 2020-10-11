@@ -216,13 +216,37 @@ def find_full_path(resource_name, extension):
     path to file
     """
     search_dir = Path(__file__).parent.parent
-    for root, dirs, files in os.walk(search_dir):  # pylint: disable=W0612
+    for root, dirs, files in os.walk(search_dir):
         for name in files:
             (base, ext) = os.path.splitext(name)
             if base == resource_name and extension == ext:
                 return os.path.join(root, name)
 
     raise Exception("No file found for specified resource name & extension")
+
+
+def find_matching_file_name(key, extension, search_dir):
+    """ Find file path, given key and extension
+        example: "/home/pi/Media/tidepool_demo.json"
+
+        This will return the *first* instance of the file
+
+    Arguments:
+    key -- portion of the file name that should match
+    extension -- ending of file (ex: ".json")
+    search_dir -- directory to search in
+
+    Output:
+    file name
+    """
+    for root, dirs, files in os.walk(search_dir):
+        for name in files:
+
+            (base, ext) = os.path.splitext(name)
+            if key in base and extension == ext:
+                return base
+
+    raise Exception("No file found for specified resource key & extension")
 
 
 def get_file_stamps():
