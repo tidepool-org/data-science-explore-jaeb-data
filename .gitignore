@@ -107,3 +107,5 @@ data/
 results/
 
 .vscode/.ropeproject/
+
+.reports
