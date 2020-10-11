@@ -132,6 +132,30 @@ def three_dimension_plot(x, y, z, labels=["", "", ""], title=""):
     plt.show()
 
 
+def plot_by_frequency(
+    column, title="", x_axis_label="", x_lim=None, bins=10, export_path=""
+):
+    """
+    column - column to plot frequencies of
+    title - title of plot
+    x_axis_label - label of x axis
+    x_lim - list of x limits in form [left, right]
+    bins - number of bins to group data into
+    should_export - set true to save the plot to png without plotting it
+    """
+    plt.hist(column, bins=bins)
+    plt.title(title, fontsize=30)
+    plt.xlabel(x_axis_label)
+    plt.ylabel("Count of Occurrences")
+    if x_lim:
+        plt.xlim(x_lim[0], x_lim[1])
+    if len(export_path) > 0:
+        plt.savefig(export_path)
+        plt.clf()
+    else:
+        plt.show()
+
+
 def two_dimension_plot(x, y, labels=["", ""], title="", ylim=None):
     """
     Function to plot a 2D graph of data, with optional labels & a title
