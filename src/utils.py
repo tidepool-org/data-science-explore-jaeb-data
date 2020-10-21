@@ -34,39 +34,39 @@ def extract_bmi_percentile(s):
     return int(s[:-1])
 
 
-def filter_aspirational_data_adult(df):
+def filter_aspirational_data_adult(df, keys):
     adults = df[
-        (df.age_at_baseline >= 18)
+        (df[keys["age"]] >= 18)
         # Normal weight
-        & (df.bmi_at_baseline < 25)
-        & (df.bmi_at_baseline >= 18.5)
+        & (df[keys["bmi"]] < 25)
+        & (df[keys["bmi"]] >= 18.5)
     ]
-    return filter_aspirational_data_without_weight(adults)
+    return filter_aspirational_data_without_weight(adults, keys)
 
 
-def filter_aspirational_data_peds(df):
-    peds = df[(df.age_at_baseline < 18) & (df.bmi_perc_at_baseline != ".")]
-    peds.bmi_perc_at_baseline = peds.bmi_perc_at_baseline.apply(extract_bmi_percentile)
+def filter_aspirational_data_peds(df, keys):
+    peds = df[(df[keys["age"]] < 18) & (df[keys["bmi_perc"]] != ".")]
+    peds[keys["bmi_perc"]] = peds[keys["bmi_perc"]].apply(extract_bmi_percentile)
     peds = peds[
         # Normal weight
-        (peds.bmi_perc_at_baseline < 85)
-        & (peds.bmi_perc_at_baseline >= 5)
+        (peds[keys["bmi_perc"]] < 85)
+        & (peds[keys["bmi_perc"]] >= 5)
     ]
 
-    return filter_aspirational_data_without_weight(peds)
+    return filter_aspirational_data_without_weight(peds, keys)
 
 
-def filter_aspirational_data_without_weight(df):
+def filter_aspirational_data_without_weight(df, keys):
     return df[
-        (df.total_daily_basal_insulin_avg > 1)
+        (df[keys["total_daily_basal"]] > 1)
         # Enough data to evaluate
-        & (df.percent_cgm_available_2week >= 90)
-        & (df.days_with_insulin >= 14)
+        & (df[keys["percent_cgm_available"]] >= 90)
+        & (df[keys["days_with_insulin"]] >= 14)
         # Good CGM distributions
-        & (df.percent_below_40_2week == 0)
-        & (df.percent_below_54_2week < 1)
-        & (df.percent_70_180_2week >= 70)
-        & (df.percent_above_250_2week < 5)
+        & (df[keys["percent_below_40"]] == 0)
+        & (df[keys["percent_below_54"] < 1)
+        & (df[keys["percent_70_180"]] >= 70)
+        & (df[keys["percent_above_250"]] < 5)
     ]
 
 
