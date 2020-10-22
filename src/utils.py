@@ -64,7 +64,7 @@ def filter_aspirational_data_without_weight(df, keys):
         & (df[keys["days_with_insulin"]] >= 14)
         # Good CGM distributions
         & (df[keys["percent_below_40"]] == 0)
-        & (df[keys["percent_below_54"] < 1)
+        & (df[keys["percent_below_54"]] < 1)
         & (df[keys["percent_70_180"]] >= 70)
         & (df[keys["percent_above_250"]] < 5)
     ]
