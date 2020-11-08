@@ -57,6 +57,20 @@ def filter_aspirational_data_peds(df, keys):
 
 
 def filter_aspirational_data_without_weight(df, keys):
+    if "scheduled_basal" in keys and "temp_basal" in keys:
+        # TODO: check in to see if we should use "scheduled_basal_rate_in_data_matches_in_settings" for this
+        # Filter out basals that aren't within +- 5% of scheduled
+        percentage = 0.05
+        lower = 1 - percentage
+        higher = 1 + percentage
+        df = df[
+            df.apply(
+                lambda row: lower * row[keys["scheduled_basal"]]
+                <= row[keys["temp_basal"]]
+                <= higher * keys["scheduled_basal"]
+            )
+        ]
+
     return df[
         (df[keys["total_daily_basal"]] > 1)
         # Enough data to evaluate
