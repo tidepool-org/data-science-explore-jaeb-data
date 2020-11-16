@@ -1,38 +1,27 @@
 import utils
 import pandas as pd
+import glob
+import os
 
 """
 Create a dataset from 30-minute data intervals
 
-break into each patient's data
-    break each patient's data by issue-report date
-        drop all cols where there isn't TIR info
-        for row
-            check that temp basal is within 5% on either side of scheduled
-            check that TIR is aspirational
-            add chunk to issue report df
-        take average of chunks and add to overall output
+get directory
+create output dataset
+
+for each file in directory that matches regex:
+    pull the row with the max value of 'percent_true_over_outcome'
+
+add info from other datasets to cleaned settings
+export all patients
 """
 
-"""
-TODOS: 
-- export data properly
-- calculate summary stats for each patient in correct format
-- figure out how to get:
-    TDD
-    total daily basal
-    BMI
-    BMI percentile
-
-"""
-tdd = "total_daily_dose_avg"
-basal = "total_daily_basal_insulin_avg"  # Total daily basal
-carb = "total_daily_carb_avg"  # Total daily CHO
-bmi = "bmi_at_baseline"
-bmi_percentile = "bmi_perc_at_baseline"
-isf = "isf"
-icr = "carb_ratio"
-age = "age_at_baseline"
+# From the individual issue report data
+tdd = "avg_total_insulin_per_day_outcomes"
+basal = "avg_basal_insulin_per_day_outcomes"  # Total daily basal
+carb = "avg_carbs_per_day_outcomes"  # Total daily CHO
+isf = "avg_isf"
+icr = "weighted_cir_outcomes"
 tir = "percent_70_180"
 percent_below_40 = "percent_below_40"
 percent_below_54 = "percent_below_54"
@@ -40,42 +29,63 @@ percent_above_250 = "percent_above_250"
 percent_cgm = "percent_cgm_available"
 issue_report_date = "issue_report_date"
 loop_id = "loop_id"
-scheduled_basal = "basal_rate"
-temp_basal = "effective_basal_rate"
+percent_true = "percent_true_over_outcome"
 
-keys = {
-    "age": age,
-    "bmi": bmi,
-    "bmi_perc": bmi_percentile,
-    "total_daily_basal": basal,
-    "percent_cgm_available": percent_cgm,
-    "days_with_insulin": days_insulin,
-    "percent_below_40": percent_below_40,
-    "percent_below_54": percent_below_54,
-    "percent_70_180": tir,
-    "percent_above_250": percent_above_250,
-    "scheduled_basal": scheduled_basal,
-    "temp_basal": temp_basal,
-}
+# From the survey data
+bmi = "bmi_at_baseline"
+bmi_percentile = "bmi_perc_at_baseline"
+age = "age_at_baseline"
 
-input_file_name = "phi-all-setting-schedule_dataset-basal_minutes_30-outcome_hours_3-expanded_windows_False-days_around_issue_report_7"
-data_path = utils.find_full_path(input_file_name, ".csv")
-df = pd.read_csv(data_path)
-output_df = pd.DataFrame(columns=df.columns)
+input_directory = "phi-all-setting-schedule_dataset-basal_minutes_30-outcome_hours_3-expanded_windows_False-days_around_issue_report_7"
+analysis_name = "make_dataset"
+all_patient_files = glob.glob(
+    os.path.join("..", "jaeb-analysis", "data", ".PHI", "*LOOP*",)
+)
 
-patient_ids = df[loop_id].unique()
-for patient_id in patient_ids:
-    patient_df = df[df[loop_id] == patient_id]
-    is_pediatric = patient_df[age].iloc[0] < 18
+output_rows_df = None
 
-    for unique_report in patient_df[issue_report_date].unique():
-        report_df = patient_df[patient_df[issue_report_date] == unique_report]
+for file_path in all_patient_files:
+    df = pd.read_csv(file_path)
 
-        # Grab only the rows with 'aspirational' results
-        if is_pediatric:
-            report_df = utils.filter_aspirational_data_peds(report_df, keys)
-        else:
-            report_df = utils.filter_aspirational_data_adult(report_df, keys)
+    # Initialize our df using the column data from our first file
+    if output_rows_df is None:
+        output_rows_df = pd.DataFrame(columns=df.columns)
 
-        output_df = output_df.append(report_df)
+    df.dropna(
+        subset=[
+            tdd,
+            basal,
+            carb,
+            isf,
+            icr,
+            tir,
+            percent_below_40,
+            percent_below_54,
+            percent_above_250,
+            percent_cgm,
+        ]
+    )
+
+    best_rows = df[
+        (df[percent_true] == df[percent_true].max()) & (df[percent_cgm] >= 90)
+    ]
+    output_rows_df = output_rows_df.append(best_rows.iloc[0], ignore_index=True)
+
+# TODO: add survey data & average by patient!!
+
+short_file_name = "processed-30-min-win"
+
+
+def export(dataframe, df_descriptor):
+    dataframe.to_csv(
+        utils.get_save_path_with_file(
+            short_file_name,
+            analysis_name,
+            short_file_name + "_" + df_descriptor + ".csv",
+            "dataset-creation",
+        )
+    )
+
+
+export(output_rows_df, "all_selected_rows")
 
