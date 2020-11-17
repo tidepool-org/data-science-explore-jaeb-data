@@ -60,11 +60,8 @@ def filter_aspirational_data_without_weight(df, keys):
     if "days_with_insulin" in keys:
         df = df[df[keys["days_with_insulin"] >= 14]]
 
-    if "total_daily_basal" in keys:
-        df = df[df[keys["total_daily_basal"] > 1]]
-
     return df[
-        # (df[keys["total_daily_basal"]] > 1)
+        (df[keys["total_daily_basal"]] > 1)
         # Enough data to evaluate
         (df[keys["percent_cgm_available"]] >= 90)
         # & (df[keys["days_with_insulin"]] >= 14)
